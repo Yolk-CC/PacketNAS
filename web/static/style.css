@@ -445,3 +445,33 @@ body {
   font-size: 1.1rem;
 }
 .lb-mute.unmuted { background: rgba(181, 113, 63, 0.55); }
+
+/* ================= M4 清晰度切换 ================= */
+
+/* 灯箱顶栏清晰度选择器（深色风格，触控 ≥40px） */
+.lb-quality {
+  min-height: 40px;
+  border: 1px solid rgba(245, 241, 236, 0.25);
+  border-radius: 10px;
+  background: rgba(245, 241, 236, 0.12);
+  color: #f5f1ec;
+  font-size: 0.9rem;
+  padding: 0 0.6rem;
+  cursor: pointer;
+}
+.lb-quality option { color: #3f3a34; background: #fff; }
+
+/* 转码进度覆盖层（半透明，不挡视频控制条） */
+.lb-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(16, 14, 12, 0.72);
+  color: #f5f1ec;
+  border-radius: 12px;
+  padding: 1rem 1.6rem;
+  font-size: 0.95rem;
+  pointer-events: none;
+  z-index: 3;
+}

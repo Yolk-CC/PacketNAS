@@ -26,6 +26,7 @@
   var lightbox = $('lightbox'), lbStage = $('lb-stage');
   var lbImg = $('lb-img'), lbVideo = $('lb-video');
   var lbLive = $('lb-live'), lbMute = $('lb-mute');
+  var lbQuality = $('lb-quality'), lbOverlay = $('lb-overlay'), lbOverlayText = $('lb-overlay-text');
   var lbName = $('lb-name'), lbTime = $('lb-time'), lbPos = $('lb-pos');
 
   /* ---------- 工具 ---------- */
@@ -331,6 +332,130 @@
     stopLive();
   });
 
+  /* ---------- M4：视频清晰度切换（转码） ---------- */
+  var RES_LABELS = { original: '原画', '1080p': '1080p', '720p': '720p', '360p': '360p' };
+  var RES_ORDER = ['original', '1080p', '720p', '360p'];
+  var vq = { seq: 0, pollTimer: null }; // seq = 序号失效法；pollTimer = 转码状态轮询
+
+  // 停止转码相关的一切：使进行中的请求/轮询失效
+  function stopVideoQuality() {
+    vq.seq++;
+    if (vq.pollTimer) { clearTimeout(vq.pollTimer); vq.pollTimer = null; }
+    lbOverlay.classList.add('hidden');
+  }
+
+  function showTranscodeOverlay(progress) {
+    lbOverlayText.textContent = '转码中 ' + Math.round(progress || 0) + '%';
+    lbOverlay.classList.remove('hidden');
+  }
+
+  // 视频实际起播（竞态已由调用方校验）
+  function setVideoSource(objURL) {
+    releaseLightboxURL();
+    lb.objURL = objURL;
+    lbOverlay.classList.add('hidden');
+    lbImg.classList.add('hidden');
+    lbVideo.classList.remove('hidden');
+    lbVideo.src = objURL;
+    lbVideo.play().catch(function () {});
+  }
+
+  // 转码失败：toast 并回退原画
+  function transcodeFailed(item) {
+    lbOverlay.classList.add('hidden');
+    toast('转码失败，已切回原画', true);
+    lbQuality.value = 'original';
+    playQuality(item, 'original');
+  }
+
+  // 播放指定清晰度：original 走 /api/media/file；转码档走 /api/video/<path>?res=xxx
+  function playQuality(item, res) {
+    stopVideoQuality();
+    var mySeq = vq.seq;
+    var myIndex = lb.index;
+    function stale() { return vq.seq !== mySeq || lb.index !== myIndex; }
+
+    if (res === 'original') {
+      fetchObjectURL('/api/media/file/' + encodePath(item.path)).then(function (objURL) {
+        if (stale()) { URL.revokeObjectURL(objURL); return; }
+        setVideoSource(objURL);
+      }).catch(function () {
+        if (!stale()) toast('媒体加载失败', true);
+      });
+      return;
+    }
+
+    var url = '/api/video/' + encodePath(item.path) + '?res=' + encodeURIComponent(res);
+    fetch(url, { headers: { 'X-Auth-Token': getToken() } }).then(function (r) {
+      if (r.status === 401) { backToLogin(); throw new Error('unauthorized'); }
+      if (stale()) throw new Error('stale');
+      if (r.status === 200) {
+        return r.blob().then(function (b) {
+          var objURL = URL.createObjectURL(b);
+          if (stale()) { URL.revokeObjectURL(objURL); return; }
+          setVideoSource(objURL);
+        });
+      }
+      if (r.status === 202) { // queued/running：显示进度并轮询
+        return r.json().then(function (body) {
+          showTranscodeOverlay(body.progress || 0);
+          pollTranscode(item, res, mySeq, myIndex);
+        });
+      }
+      if (r.status === 409) { transcodeFailed(item); return; }
+      throw new Error('video ' + r.status);
+    }).catch(function (err) {
+      if (err && (err.message === 'stale' || err.message === 'unauthorized')) return;
+      if (!stale()) transcodeFailed(item);
+    });
+  }
+
+  // 每 2s 轮询 GET /api/video/status/<path>?res=xxx，done 后重新 fetch 播放
+  function pollTranscode(item, res, mySeq, myIndex) {
+    vq.pollTimer = setTimeout(function () {
+      var url = '/api/video/status/' + encodePath(item.path) + '?res=' + encodeURIComponent(res);
+      fetch(url, { headers: { 'X-Auth-Token': getToken() } }).then(function (r) {
+        if (r.status === 401) { backToLogin(); return; }
+        if (vq.seq !== mySeq || lb.index !== myIndex) return; // 已切换/关闭
+        if (!r.ok) { transcodeFailed(item); return; }
+        return r.json().then(function (body) {
+          if (vq.seq !== mySeq || lb.index !== myIndex) return;
+          if (body.status === 'done') {
+            playQuality(item, res); // 重新 GET，此时应 200
+          } else if (body.status === 'failed') {
+            transcodeFailed(item);
+          } else {
+            showTranscodeOverlay(body.progress || 0);
+            pollTranscode(item, res, mySeq, myIndex);
+          }
+        });
+      }).catch(function () {
+        // 网络抖动：序号仍有效则继续轮询
+        if (vq.seq === mySeq && lb.index === myIndex) pollTranscode(item, res, mySeq, myIndex);
+      });
+    }, 2000);
+  }
+
+  // 依据 item.resolutions 构建清晰度选择器（默认原画）
+  function setupQualitySelector(item) {
+    var available = item.resolutions && item.resolutions.length ? item.resolutions : RES_ORDER;
+    lbQuality.innerHTML = '';
+    RES_ORDER.forEach(function (res) {
+      if (available.indexOf(res) === -1) return;
+      var opt = document.createElement('option');
+      opt.value = res;
+      opt.textContent = RES_LABELS[res] || res;
+      lbQuality.appendChild(opt);
+    });
+    lbQuality.value = 'original';
+    lbQuality.classList.remove('hidden');
+  }
+
+  lbQuality.addEventListener('change', function () {
+    var item = currentItem();
+    if (item && isVideo(item)) playQuality(item, lbQuality.value);
+  });
+
   function setZoom(zoomed, e) {
     lb.zoomed = zoomed;
     if (zoomed) {
@@ -351,8 +476,9 @@
     lb.index = i;
     var item = state.items[i];
 
-    // 释放上一项资源（含未触发的 Live Photo 定时器与播放）
+    // 释放上一项资源（含未触发的 Live Photo 定时器与播放、转码轮询）
     stopLive();
+    stopVideoQuality();
     releaseLightboxURL();
     lbVideo.pause();
     lbVideo.removeAttribute('src');
@@ -364,21 +490,21 @@
     lbTime.textContent = formatTime(item.takenTime);
     lbPos.textContent = (i + 1) + '/' + state.total;
 
-    // 原图/原视频：GET /api/media/file/<path>（每段 encodeURIComponent），需鉴权 → blob
-    var mediaURL = '/api/media/file/' + encodePath(item.path);
-    fetchObjectURL(mediaURL).then(function (objURL) {
+    if (isVideo(item)) {
+      // M4：视频项显示清晰度选择器，默认原画（/api/media/file）
+      setupQualitySelector(item);
+      playQuality(item, 'original');
+      return;
+    }
+    lbQuality.classList.add('hidden');
+
+    // 原图：GET /api/media/file/<path>（每段 encodeURIComponent），需鉴权 → blob
+    fetchObjectURL('/api/media/file/' + encodePath(item.path)).then(function (objURL) {
       if (lb.index !== i) { URL.revokeObjectURL(objURL); return; } // 已切换，丢弃
       lb.objURL = objURL;
-      if (isVideo(item)) {
-        lbImg.classList.add('hidden');
-        lbVideo.classList.remove('hidden');
-        lbVideo.src = objURL;
-        lbVideo.play().catch(function () {});
-      } else {
-        lbVideo.classList.add('hidden');
-        lbImg.classList.remove('hidden');
-        lbImg.src = objURL;
-      }
+      lbVideo.classList.add('hidden');
+      lbImg.classList.remove('hidden');
+      lbImg.src = objURL;
     }).catch(function () { toast('媒体加载失败', true); });
   }
 
@@ -410,6 +536,7 @@
     lightbox.classList.add('hidden');
     document.body.style.overflow = '';
     stopLive();
+    stopVideoQuality();
     lbVideo.pause();
     lbVideo.removeAttribute('src');
     lbVideo.load();
