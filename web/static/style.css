@@ -246,3 +246,161 @@ body {
   .file-table { min-width: 420px; }
   #main-view { padding: 0.5rem; }
 }
+
+/* ================= M2 相册页 ================= */
+
+/* ---------- Tab 导航（文件 | 相册） ---------- */
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  background: #f4efe9;
+  border-radius: 10px;
+  padding: 3px;
+}
+.tab {
+  display: inline-block;
+  padding: 0.35rem 0.9rem;
+  min-height: 36px;
+  line-height: 1.6;
+  border-radius: 8px;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+.tab:hover { color: var(--text); }
+.tab.active {
+  background: var(--card);
+  color: var(--accent);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(63, 58, 52, 0.1);
+}
+
+/* ---------- 相册视图布局 ---------- */
+.gallery-view {
+  max-width: 1280px;
+}
+
+/* 索引状态细条 */
+.scan-status {
+  font-size: 0.8rem;
+  color: var(--muted);
+  padding: 0 0.25rem;
+}
+
+/* ---------- 正方形网格 ---------- */
+.gallery-area { flex: 1; }
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 4px;
+}
+.cell {
+  position: relative;
+  aspect-ratio: 1;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #efe9e2;
+  cursor: pointer;
+}
+.cell img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.2s;
+}
+.cell:hover img { transform: scale(1.03); }
+.cell.thumb-error { background: #e7e2dc; }
+.video-badge {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  background: rgba(30, 26, 22, 0.65);
+  color: #fff;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  padding: 0.1rem 0.4rem;
+  pointer-events: none;
+}
+#empty-hint, #loading-hint, #end-hint { padding: 2rem 0; }
+
+/* ---------- 灯箱（近黑深色全屏） ---------- */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 14, 12, 0.96);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.lb-stage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.lb-media {
+  max-width: 100vw;
+  max-height: 100vh;
+  object-fit: contain;
+  user-select: none;
+}
+#lb-img { transition: transform 0.2s; cursor: zoom-in; }
+#lb-img.zoomed { transform: scale(2.5); cursor: zoom-out; }
+
+.lb-topbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.8rem 1rem;
+  color: #f5f1ec;
+  z-index: 2;
+  background: rgba(16, 14, 12, 0.55);
+}
+.lb-info { flex: 1; min-width: 0; }
+.lb-name {
+  font-size: 0.95rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lb-time { font-size: 0.78rem; color: #b8afa4; }
+.lb-pos { font-size: 0.85rem; color: #b8afa4; white-space: nowrap; }
+
+.lb-btn {
+  background: rgba(245, 241, 236, 0.12);
+  border: none;
+  color: #f5f1ec;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 10px;
+  font-size: 1.3rem;
+  cursor: pointer;
+  z-index: 2;
+}
+.lb-btn:hover { background: rgba(245, 241, 236, 0.25); }
+.lb-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.6rem;
+  padding: 0 0.8rem;
+}
+.lb-prev { left: 0.75rem; }
+.lb-next { right: 0.75rem; }
+
+/* ---------- 相册页响应式 ---------- */
+@media (max-width: 640px) {
+  .grid { grid-template-columns: repeat(3, 1fr); gap: 2px; }
+  .cell { border-radius: 4px; }
+  .lb-nav { display: none; } /* 移动端用滑动手势切换 */
+}
