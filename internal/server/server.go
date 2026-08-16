@@ -23,6 +23,7 @@ import (
 
 	"pocket-nas/internal/config"
 	"pocket-nas/internal/files"
+	"pocket-nas/internal/livephoto"
 	"pocket-nas/internal/media"
 	"pocket-nas/web"
 )
@@ -140,11 +141,15 @@ func newRouter(cfg config.Config, svc *files.Service) (http.Handler, func()) {
 	var (
 		mediaOnce sync.Once
 		mediaH    *media.Handler
+		liveH     *livephoto.Handler
 		mediaErr  error
 	)
 	getMedia := func() (*media.Handler, error) {
 		mediaOnce.Do(func() {
 			mediaH, mediaErr = media.NewHandler(svc.Root())
+			if mediaErr == nil {
+				liveH, mediaErr = livephoto.NewHandler(svc.Root(), mediaH.LiveLookup)
+			}
 			if mediaErr == nil {
 				mediaH.StartBackgroundScan()
 			}
@@ -185,6 +190,9 @@ func newRouter(cfg config.Config, svc *files.Service) (http.Handler, func()) {
 			r.Get("/gallery/scan", withMedia(func(mh *media.Handler, w http.ResponseWriter, r *http.Request) { mh.GalleryScan(w, r) }))
 			r.Get("/thumb/*", withMedia(func(mh *media.Handler, w http.ResponseWriter, r *http.Request) { mh.Thumb(w, r) }))
 			r.Get("/media/file/*", withMedia(func(mh *media.Handler, w http.ResponseWriter, r *http.Request) { mh.MediaFile(w, r) }))
+
+			// M3: Live Photo video extraction.
+			r.Get("/livephoto/*", withMedia(func(_ *media.Handler, w http.ResponseWriter, r *http.Request) { liveH.ServeHTTP(w, r) }))
 		})
 	})
 

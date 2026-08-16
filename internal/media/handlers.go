@@ -14,6 +14,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"pocket-nas/internal/files"
+	"pocket-nas/internal/livephoto"
 )
 
 const (
@@ -71,6 +72,22 @@ func (h *Handler) Scanner() *Scanner { return h.scanner }
 // Store exposes the index store (for tests).
 func (h *Handler) Store() *Store { return h.store }
 
+// LiveLookup implements livephoto.Lookup against the index store; used by
+// the /api/livephoto handler.
+func (h *Handler) LiveLookup(rel string) (*livephoto.Meta, error) {
+	m, err := h.store.Get(rel)
+	if err != nil || m == nil {
+		return nil, err
+	}
+	return &livephoto.Meta{
+		Live:      m.IsLivePhoto,
+		Type:      m.LiveType,
+		Offset:    m.VideoOffset,
+		Length:    m.VideoLength,
+		Companion: m.CompanionPath,
+	}, nil
+}
+
 type errorBody struct {
 	Error struct {
 		Code    string `json:"code"`
@@ -95,14 +112,16 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 
 // galleryItem is one entry of the /api/gallery response.
 type galleryItem struct {
-	Path      string `json:"path"`
-	Name      string `json:"name"`
-	MimeType  string `json:"mimeType"`
-	TakenTime int64  `json:"takenTime"`
-	Width     int    `json:"width"`
-	Height    int    `json:"height"`
-	Duration  int    `json:"duration"`
-	ThumbURL  string `json:"thumbUrl"`
+	Path        string `json:"path"`
+	Name        string `json:"name"`
+	MimeType    string `json:"mimeType"`
+	TakenTime   int64  `json:"takenTime"`
+	Width       int    `json:"width"`
+	Height      int    `json:"height"`
+	Duration    int    `json:"duration"`
+	ThumbURL    string `json:"thumbUrl"`
+	IsLivePhoto bool   `json:"isLivePhoto"` // M3
+	LiveType    string `json:"liveType"`    // pixel | pixel_legacy | samsung | ios | ""
 }
 
 // Gallery handles GET /api/gallery?offset=0&limit=200&type=all|image|video.
@@ -131,14 +150,16 @@ func (h *Handler) Gallery(w http.ResponseWriter, r *http.Request) {
 	out := make([]galleryItem, 0, len(items))
 	for _, m := range items {
 		out = append(out, galleryItem{
-			Path:      m.Path,
-			Name:      m.Name,
-			MimeType:  m.MimeType,
-			TakenTime: m.TakenTime,
-			Width:     m.Width,
-			Height:    m.Height,
-			Duration:  m.Duration,
-			ThumbURL:  "/api/thumb" + thumbPathEscape(m.Path) + "?w=300&h=300",
+			Path:        m.Path,
+			Name:        m.Name,
+			MimeType:    m.MimeType,
+			TakenTime:   m.TakenTime,
+			Width:       m.Width,
+			Height:      m.Height,
+			Duration:    m.Duration,
+			ThumbURL:    "/api/thumb" + thumbPathEscape(m.Path) + "?w=300&h=300",
+			IsLivePhoto: m.IsLivePhoto,
+			LiveType:    m.LiveType,
 		})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"total": total, "items": out})

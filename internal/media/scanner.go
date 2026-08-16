@@ -8,6 +8,7 @@ import (
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
+	"io"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -23,6 +24,7 @@ import (
 	"golang.org/x/image/webp"
 
 	"pocket-nas/internal/files"
+	"pocket-nas/internal/livephoto"
 )
 
 const scanWorkers = 4
@@ -207,7 +209,103 @@ func (sc *Scanner) scan(ctx context.Context, mtimes map[string]int64, progress c
 	if derr := sc.store.DeleteMissing(seen); derr != nil && err == nil {
 		err = derr
 	}
+	// M3: iOS Live Photo pairing runs after every scan so both new pairs
+	// and removed companions are reflected.
+	if perr := sc.pairIOSLivePhotos(ctx); perr != nil && err == nil {
+		err = perr
+	}
 	return err
+}
+
+// parseLivePhoto reads the file head and runs the livephoto parser.
+// Failures yield "none" and never break the scan.
+func parseLivePhoto(abs string) livephoto.Info {
+	f, err := os.Open(abs)
+	if err != nil {
+		return livephoto.None
+	}
+	defer f.Close()
+	head := make([]byte, livephoto.HeadSize())
+	n, _ := io.ReadFull(f, head)
+	return livephoto.Parse(abs, head[:n])
+}
+
+// pairIOSLivePhotos marks .heic/.jpg images having a same-name .mov
+// companion in the same directory as iOS Live Photos, and clears the flag
+// when the companion disappeared.
+func (sc *Scanner) pairIOSLivePhotos(ctx context.Context) error {
+	images, err := sc.store.ImageMedias()
+	if err != nil {
+		return err
+	}
+	for _, m := range images {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		ext := strings.ToLower(filepath.Ext(m.Name))
+		if ext != ".heic" && ext != ".heif" && ext != ".jpg" && ext != ".jpeg" {
+			continue
+		}
+		companion, size, ok := sc.findCompanion(m)
+		switch {
+		case ok:
+			if !m.IsLivePhoto || m.LiveType != "ios" || m.CompanionPath != companion {
+				if err := sc.store.SetLiveInfo(m.Path, true, "ios", companion, 0, size); err != nil {
+					return err
+				}
+			}
+		case m.IsLivePhoto && m.LiveType == "ios":
+			// Companion deleted between scans: clear the pairing.
+			if err := sc.store.SetLiveInfo(m.Path, false, "", "", 0, 0); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// findCompanion looks for a same-name .mov next to the image. Same-name
+// match wins; among multiple case variants the one whose mtime is within
+// 5s of the image's is preferred.
+func (sc *Scanner) findCompanion(m Media) (string, int64, bool) {
+	dir := filepath.Dir(strings.TrimPrefix(m.Path, "/"))
+	base := strings.TrimSuffix(m.Name, filepath.Ext(m.Name))
+	type cand struct {
+		rel   string
+		mtime int64
+		size  int64
+	}
+	var cands []cand
+	for _, movExt := range []string{".mov", ".MOV"} {
+		rel := "/" + filepath.ToSlash(filepath.Join(dir, base+movExt))
+		abs, err := files.Resolve(sc.root, rel)
+		if err != nil {
+			continue
+		}
+		st, err := os.Stat(abs)
+		if err != nil || st.IsDir() {
+			continue
+		}
+		cands = append(cands, cand{rel, st.ModTime().Unix(), st.Size()})
+	}
+	if len(cands) == 0 {
+		return "", 0, false
+	}
+	best := cands[0]
+	for _, c := range cands[1:] {
+		dBest := best.mtime - m.ModifiedTime
+		if dBest < 0 {
+			dBest = -dBest
+		}
+		dC := c.mtime - m.ModifiedTime
+		if dC < 0 {
+			dC = -dC
+		}
+		if dC < 5 && dC < dBest {
+			best = c
+		}
+	}
+	return best.rel, best.size, true
 }
 
 // extract builds a Media row for one file. Failures are non-fatal: unknown
@@ -231,6 +329,13 @@ func extract(ctx context.Context, abs, rel string, info fs.FileInfo) Media {
 			if t, ok := exifTaken(abs); ok {
 				m.TakenTime = t
 			}
+		}
+		// M3: detect embedded Motion Photo video from the head bytes.
+		if li := parseLivePhoto(abs); li.Type != "none" {
+			m.IsLivePhoto = true
+			m.LiveType = li.Type
+			m.VideoOffset = li.VideoOffset
+			m.VideoLength = li.VideoLength
 		}
 	case isVideo(abs):
 		w, h, dur := probeVideo(ctx, abs)
