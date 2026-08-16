@@ -1,0 +1,24 @@
+# PocketNAS systemd unit template.
+# Install:
+#   sudo install -m755 pocket-nas-linux-amd64 /usr/local/bin/pocket-nas
+#   sudo install -m644 pocket-nas.service /etc/systemd/system/pocket-nas.service
+#   sudo mkdir -p /srv/pocket-nas
+#   sudo systemctl daemon-reload && sudo systemctl enable --now pocket-nas
+[Unit]
+Description=PocketNAS personal file/photo server
+After=network.target
+
+[Service]
+Type=simple
+# Adjust the storage root and (optionally) set a password to enable auth.
+ExecStart=/usr/local/bin/pocket-nas -root /srv/pocket-nas -addr 0.0.0.0 -port 8080
+Restart=on-failure
+RestartSec=3
+# Hardening (optional, safe defaults):
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

@@ -10,8 +10,9 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-// Version is reported by /api/system/info.
-const Version = "0.1.0"
+// Version is reported by /api/system/info. It is a var so release builds can
+// inject it via -ldflags "-X pocket-nas/internal/files.Version=vX.Y.Z".
+var Version = "0.1.0"
 
 // Handler exposes Service over HTTP per the SPEC API contract.
 type Handler struct {
