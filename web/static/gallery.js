@@ -613,10 +613,13 @@
   }, { passive: true });
 
   /* ---------- 启动 ---------- */
-  if (localStorage.getItem(TOKEN_KEY) === null) {
-    backToLogin(); // 从未登录，跳回 index.html
-    return;
-  }
-  pollScan();
-  loadPage();
+  // 无密码模式下 token 可能从未设置；以真实 API 探测为准，仅 401 才跳回登录页
+  api('/api/gallery?offset=0&limit=1&type=all').then(function () {
+    pollScan();
+    loadPage();
+  }).catch(function (e) {
+    if (e && e.message === 'unauthorized') return; // api() 内已 backToLogin()
+    pollScan(); // 其他错误（如网络抖动）仍尝试进入
+    loadPage();
+  });
 })();
