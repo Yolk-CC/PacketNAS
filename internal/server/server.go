@@ -221,9 +221,10 @@ func newRouter(cfg config.Config, svc *files.Service) (http.Handler, func()) {
 	return r, warmup
 }
 
-// Start runs the HTTP server until SIGINT/SIGTERM. If cfg.Port is occupied
-// it retries with port+1 up to 100 times, then prints the actual address.
-func Start(cfg config.Config) error {
+// startServer binds the listener (port+1 retries) and serves in a
+// goroutine, returning the actual address, the server and an error channel
+// that receives the Serve return value.
+func startServer(cfg config.Config) (addr string, srv *http.Server, errCh chan error, err error) {
 	svc := files.New(cfg.Root)
 	handler, warmMedia := newRouter(cfg, svc)
 	warmMedia() // open the index and kick off the background incremental scan
@@ -231,28 +232,57 @@ func Start(cfg config.Config) error {
 	var listener net.Listener
 	port := cfg.Port
 	for attempt := 0; attempt <= maxPortRetries; attempt++ {
-		l, err := net.Listen("tcp", fmt.Sprintf("%s:%d", cfg.Addr, port))
-		if err == nil {
+		l, lerr := net.Listen("tcp", fmt.Sprintf("%s:%d", cfg.Addr, port))
+		if lerr == nil {
 			listener = l
 			break
 		}
 		if attempt == maxPortRetries {
-			return fmt.Errorf("no free port in range %d-%d: %w", cfg.Port, port, err)
+			return "", nil, nil, fmt.Errorf("no free port in range %d-%d: %w", cfg.Port, port, lerr)
 		}
 		port++
 	}
-	defer listener.Close()
 
-	srv := &http.Server{Handler: handler}
-	fmt.Printf("PocketNAS listening on http://%s (root: %s)\n", listener.Addr().String(), svc.Root())
-
-	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
-
-	errCh := make(chan error, 1)
+	srv = &http.Server{Handler: handler}
+	errCh = make(chan error, 1)
 	go func() {
 		errCh <- srv.Serve(listener)
 	}()
+	return "http://" + listener.Addr().String(), srv, errCh, nil
+}
+
+// StartAsync starts the HTTP server without blocking and without installing
+// signal handlers (for embedding, e.g. the Android gomobile binding).
+// It returns the actual base URL and a stop function for graceful shutdown.
+func StartAsync(cfg config.Config) (string, func(), error) {
+	addr, srv, errCh, err := startServer(cfg)
+	if err != nil {
+		return "", nil, err
+	}
+	go func() { // surface unexpected serve failures in the log
+		if err := <-errCh; err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Printf("server error: %v", err)
+		}
+	}()
+	stop := func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_ = srv.Shutdown(ctx)
+	}
+	return addr, stop, nil
+}
+
+// Start runs the HTTP server until SIGINT/SIGTERM. If cfg.Port is occupied
+// it retries with port+1 up to 100 times, then prints the actual address.
+func Start(cfg config.Config) error {
+	addr, srv, errCh, err := startServer(cfg)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("PocketNAS listening on %s (root: %s)\n", addr, cfg.Root)
+
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
 
 	select {
 	case <-ctx.Done():

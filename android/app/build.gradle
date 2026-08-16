@@ -1,0 +1,38 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'com.pocketnas.app'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.pocketnas.app"
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName "0.5.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+}
+
+dependencies {
+    // gomobile bind output: place pocketnas.aar into app/libs/
+    // (gomobile bind -target=android/arm64 -androidapi 26 -o app/libs/pocketnas.aar pocket-nas/mobile)
+    implementation fileTree(dir: 'libs', include: ['*.aar'])
+    implementation 'androidx.activity:activity:1.9.2'
+}

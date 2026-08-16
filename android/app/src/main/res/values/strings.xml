@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">PocketNAS</string>
+    <string name="notification_channel">服务状态</string>
+    <string name="notification_text">PocketNAS 运行中 · 点击打开</string>
+</resources>
