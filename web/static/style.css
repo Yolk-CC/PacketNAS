@@ -1,0 +1,248 @@
+/* PocketNAS M1 — 浅色、低饱和暖色调、圆角卡片、响应式 */
+:root {
+  --bg: #fafaf9;
+  --card: #ffffff;
+  --border: #e7e2dc;
+  --text: #3f3a34;
+  --muted: #8a8178;
+  --accent: #b5713f;        /* 暖陶土色 */
+  --accent-hover: #9d5f32;
+  --danger: #b04a4a;
+  --radius: 12px;
+  font-size: 16px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  line-height: 1.5;
+}
+
+.hidden { display: none !important; }
+.muted { color: var(--muted); }
+.center { text-align: center; }
+.error-text { color: var(--danger); margin-top: 0.75rem; }
+
+/* ---------- 按钮 ---------- */
+.btn {
+  min-height: 40px;
+  padding: 0.45rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--text);
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn:hover { background: #f4efe9; }
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.btn.primary:hover { background: var(--accent-hover); }
+.btn.subtle { color: var(--muted); }
+
+/* ---------- 登录视图 ---------- */
+#login-view {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.login-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2.5rem 2rem;
+  width: 100%;
+  max-width: 360px;
+  box-shadow: 0 4px 16px rgba(63, 58, 52, 0.06);
+}
+.login-card h1 { margin: 0 0 0.25rem; font-size: 1.5rem; }
+#login-form { display: flex; flex-direction: column; gap: 0.9rem; margin-top: 1.5rem; }
+#login-form input {
+  min-height: 44px;
+  padding: 0 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 1rem;
+  background: #fdfcfa;
+}
+#login-form input:focus { outline: 2px solid rgba(181, 113, 63, 0.35); }
+
+/* ---------- 主视图 ---------- */
+#main-view {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  gap: 1rem;
+}
+
+.topbar {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.8rem 1.2rem;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+}
+.brand { font-weight: 700; font-size: 1.1rem; color: var(--accent); }
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.crumb {
+  background: none;
+  border: none;
+  padding: 0.35rem 0.55rem;
+  min-height: 40px;
+  font-size: 0.95rem;
+  color: var(--accent);
+  cursor: pointer;
+  border-radius: 8px;
+}
+.crumb:hover { background: #f4efe9; }
+.crumb-sep { color: var(--muted); }
+
+.actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.actions select {
+  min-height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  padding: 0 0.5rem;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+
+/* ---------- 文件列表 ---------- */
+.list-area {
+  position: relative;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.5rem;
+  flex: 1;
+}
+.table-wrap { overflow-x: auto; }
+.file-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 560px;
+}
+.file-table th {
+  text-align: left;
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-weight: 600;
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.file-table td {
+  padding: 0.3rem 0.9rem;
+  border-bottom: 1px solid #f1ede7;
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+.file-table tr:last-child td { border-bottom: none; }
+
+.name-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: none;
+  border: none;
+  min-height: 44px;
+  width: 100%;
+  text-align: left;
+  font-size: 0.95rem;
+  color: var(--text);
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 0.2rem 0.4rem;
+}
+.name-cell:hover { background: #f6f1ea; }
+.name-cell .icon { font-size: 1.25rem; }
+.name-cell .name { overflow: hidden; text-overflow: ellipsis; }
+
+.ops-col { text-align: right; width: 1%; }
+.op-btn {
+  min-height: 40px;
+  min-width: 40px;
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0.3rem 0.5rem;
+  border-radius: 8px;
+}
+.op-btn:hover { background: #f4efe9; }
+.op-btn.danger { color: var(--danger); }
+
+.drop-hint {
+  position: absolute;
+  inset: 0.5rem;
+  border: 2px dashed var(--accent);
+  border-radius: var(--radius);
+  background: rgba(250, 250, 249, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  font-weight: 600;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.statusbar {
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-align: center;
+  padding-bottom: 0.5rem;
+}
+
+/* ---------- Toast ---------- */
+.toast {
+  position: fixed;
+  top: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: 10px;
+  padding: 0.7rem 1.2rem;
+  box-shadow: 0 6px 20px rgba(63, 58, 52, 0.12);
+  font-size: 0.95rem;
+  z-index: 100;
+  max-width: 90vw;
+}
+.toast.error { border-left-color: var(--danger); }
+
+/* ---------- 响应式 ---------- */
+@media (max-width: 640px) {
+  .topbar { padding: 0.7rem 0.9rem; }
+  .file-table th:nth-child(3), .file-table td:nth-child(3) { display: none; } /* 窄屏隐藏修改时间 */
+  .file-table { min-width: 420px; }
+  #main-view { padding: 0.5rem; }
+}
