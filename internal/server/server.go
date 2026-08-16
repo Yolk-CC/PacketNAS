@@ -23,11 +23,12 @@ import (
 
 	"pocket-nas/internal/config"
 	"pocket-nas/internal/files"
+	"pocket-nas/internal/media"
 	"pocket-nas/web"
 )
 
 const (
-	tokenTTL      = 7 * 24 * time.Hour // 7 days
+	tokenTTL       = 7 * 24 * time.Hour // 7 days
 	maxPortRetries = 100
 )
 
@@ -121,8 +122,45 @@ func loginHandler(cfg config.Config, tokens *tokenStore) http.HandlerFunc {
 
 // NewRouter builds the chi router (exported for tests).
 func NewRouter(cfg config.Config, svc *files.Service) http.Handler {
+	r, _ := newRouter(cfg, svc)
+	return r
+}
+
+// newRouter builds the router and returns a warmup function that eagerly
+// opens the media index and starts the background scan (used by Start).
+// Media routes open the index lazily on first use so that routers built in
+// tests (or for pure file serving) never touch the storage root.
+func newRouter(cfg config.Config, svc *files.Service) (http.Handler, func()) {
 	h := files.NewHandler(svc)
 	tokens := newTokenStore()
+
+	// Lazy media handler: opened at most once, on first media request or
+	// warmup. Failure disables media endpoints with 500 but never breaks
+	// file management.
+	var (
+		mediaOnce sync.Once
+		mediaH    *media.Handler
+		mediaErr  error
+	)
+	getMedia := func() (*media.Handler, error) {
+		mediaOnce.Do(func() {
+			mediaH, mediaErr = media.NewHandler(svc.Root())
+			if mediaErr == nil {
+				mediaH.StartBackgroundScan()
+			}
+		})
+		return mediaH, mediaErr
+	}
+	withMedia := func(fn func(*media.Handler, http.ResponseWriter, *http.Request)) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			mh, err := getMedia()
+			if err != nil {
+				writeAuthError(w, http.StatusInternalServerError, "INTERNAL", "media index unavailable: "+err.Error())
+				return
+			}
+			fn(mh, w, r)
+		}
+	}
 
 	r := chi.NewRouter()
 	r.Use(middleware.Recoverer)
@@ -141,6 +179,12 @@ func NewRouter(cfg config.Config, svc *files.Service) http.Handler {
 			r.Post("/upload", h.Upload)
 			r.Get("/download/*", h.Download)
 			r.Get("/system/info", h.SystemInfo)
+
+			// M2 media routes (same auth middleware as the rest of /api).
+			r.Get("/gallery", withMedia(func(mh *media.Handler, w http.ResponseWriter, r *http.Request) { mh.Gallery(w, r) }))
+			r.Get("/gallery/scan", withMedia(func(mh *media.Handler, w http.ResponseWriter, r *http.Request) { mh.GalleryScan(w, r) }))
+			r.Get("/thumb/*", withMedia(func(mh *media.Handler, w http.ResponseWriter, r *http.Request) { mh.Thumb(w, r) }))
+			r.Get("/media/file/*", withMedia(func(mh *media.Handler, w http.ResponseWriter, r *http.Request) { mh.MediaFile(w, r) }))
 		})
 	})
 
@@ -149,15 +193,23 @@ func NewRouter(cfg config.Config, svc *files.Service) http.Handler {
 	if err != nil {
 		panic(err)
 	}
+	// /static/* alias so absolute references like /static/placeholder.svg work.
+	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.FS(static))))
 	r.Handle("/*", http.FileServer(http.FS(static)))
-	return r
+	warmup := func() {
+		if _, err := getMedia(); err != nil {
+			log.Printf("media index disabled: %v", err)
+		}
+	}
+	return r, warmup
 }
 
 // Start runs the HTTP server until SIGINT/SIGTERM. If cfg.Port is occupied
 // it retries with port+1 up to 100 times, then prints the actual address.
 func Start(cfg config.Config) error {
 	svc := files.New(cfg.Root)
-	handler := NewRouter(cfg, svc)
+	handler, warmMedia := newRouter(cfg, svc)
+	warmMedia() // open the index and kick off the background incremental scan
 
 	var listener net.Listener
 	port := cfg.Port

@@ -34,6 +34,12 @@ type Service struct {
 // New creates a Service for the given root directory. The root is resolved
 // with filepath.Abs + EvalSymlinks so resolve() prefix checks are reliable.
 func New(root string) *Service {
+	return &Service{root: ResolveRoot(root)}
+}
+
+// ResolveRoot normalizes a root directory with filepath.Abs +
+// filepath.EvalSymlinks so Resolve prefix checks are reliable.
+func ResolveRoot(root string) string {
 	abs, err := filepath.Abs(root)
 	if err == nil {
 		root = abs
@@ -41,7 +47,16 @@ func New(root string) *Service {
 	if resolved, err := filepath.EvalSymlinks(root); err == nil {
 		root = resolved
 	}
-	return &Service{root: root}
+	return root
+}
+
+// Resolve converts a client-supplied root-relative slash path ("/sub/a.jpg")
+// into an absolute filesystem path guaranteed to stay inside root. It is the
+// exported form of Service.resolve so other packages (e.g. media) can apply
+// the exact same path-safety rules. root should be normalized with
+// ResolveRoot first (as New does).
+func Resolve(root, rel string) (string, error) {
+	return resolve(root, rel)
 }
 
 // Root returns the resolved root directory.
@@ -55,6 +70,10 @@ func (s *Service) Root() string { return s.root }
 // do not exist yet (upload, mkdir, rename target) EvalSymlinks degrades to
 // evaluating the deepest existing ancestor.
 func (s *Service) resolve(rel string) (string, error) {
+	return resolve(s.root, rel)
+}
+
+func resolve(root, rel string) (string, error) {
 	if rel == "" {
 		rel = "/"
 	}
@@ -69,7 +88,7 @@ func (s *Service) resolve(rel string) (string, error) {
 	// so it can never be absolute.
 	cleaned := path.Clean("/" + rel)
 	cleaned = strings.TrimPrefix(cleaned, "/")
-	joined := filepath.Join(s.root, filepath.FromSlash(cleaned))
+	joined := filepath.Join(root, filepath.FromSlash(cleaned))
 
 	// Evaluate symlinks on the deepest existing ancestor to support
 	// not-yet-existing paths (upload/mkdir/rename targets).
@@ -81,7 +100,7 @@ func (s *Service) resolve(rel string) (string, error) {
 			for i := len(suffix) - 1; i >= 0; i-- {
 				resolved = filepath.Join(resolved, suffix[i])
 			}
-			if resolved != s.root && !strings.HasPrefix(resolved, s.root+string(os.PathSeparator)) {
+			if resolved != root && !strings.HasPrefix(resolved, root+string(os.PathSeparator)) {
 				return "", ErrForbidden
 			}
 			return resolved, nil
