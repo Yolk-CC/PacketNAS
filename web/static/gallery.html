@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PocketNAS 相册</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="main-view" class="view gallery-view">
+  <header class="topbar">
+    <div class="brand">PocketNAS</div>
+    <nav class="tabs">
+      <a class="tab" href="index.html">文件</a>
+      <a class="tab active" href="gallery.html">相册</a>
+    </nav>
+    <div class="actions">
+      <select id="type-filter" title="类型筛选">
+        <option value="all">全部</option>
+        <option value="image">图片</option>
+        <option value="video">视频</option>
+      </select>
+      <button id="btn-logout" class="btn subtle">退出</button>
+    </div>
+  </header>
+
+  <div class="scan-status"><span id="scan-text">加载中…</span></div>
+
+  <main id="gallery-area" class="gallery-area">
+    <div id="grid" class="grid"></div>
+    <p id="empty-hint" class="muted center hidden">暂无媒体文件</p>
+    <p id="loading-hint" class="muted center hidden">加载中…</p>
+    <p id="end-hint" class="muted center hidden">已加载全部</p>
+    <div id="scroll-sentinel"></div>
+  </main>
+</div>
+
+<!-- 灯箱 -->
+<div id="lightbox" class="lightbox hidden">
+  <div class="lb-topbar">
+    <div class="lb-info">
+      <div id="lb-name" class="lb-name"></div>
+      <div id="lb-time" class="lb-time"></div>
+    </div>
+    <div class="lb-pos" id="lb-pos"></div>
+    <button id="lb-close" class="lb-btn" title="关闭 (Esc)">&times;</button>
+  </div>
+  <button id="lb-prev" class="lb-btn lb-nav lb-prev" title="上一张 (←)">&lt;</button>
+  <div id="lb-stage" class="lb-stage">
+    <img id="lb-img" class="lb-media hidden" alt="">
+    <video id="lb-video" class="lb-media hidden" controls playsinline></video>
+  </div>
+  <button id="lb-next" class="lb-btn lb-nav lb-next" title="下一张 (→)">&gt;</button>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="gallery.js"></script>
+</body>
+</html>
