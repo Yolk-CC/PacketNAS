@@ -1,4 +1,5 @@
-/* PocketNAS M2 相册页 —— 原生 fetch，无框架，无外部依赖。
+/* PocketNAS M2/M3 相册页 —— 原生 fetch，无框架，无外部依赖。
+ * M3：Live Photo 角标 + 灯箱悬停/长按播放（SPEC-M3 §1.3/§2）。
  * API 契约见 SPEC-M2 §5；鉴权沿用 M1（localStorage pocketnas_token + X-Auth-Token）。
  * 媒体（缩略图/原图/视频）均需鉴权，统一 fetch(blob) → URL.createObjectURL。 */
 (function () {
@@ -24,6 +25,7 @@
   var scanText = $('scan-text');
   var lightbox = $('lightbox'), lbStage = $('lb-stage');
   var lbImg = $('lb-img'), lbVideo = $('lb-video');
+  var lbLive = $('lb-live'), lbMute = $('lb-mute');
   var lbName = $('lb-name'), lbTime = $('lb-time'), lbPos = $('lb-pos');
 
   /* ---------- 工具 ---------- */
@@ -167,6 +169,14 @@
         cell.appendChild(badge);
       }
 
+      // M3：Live Photo 右上角「LIVE」胶囊角标
+      if (item.isLivePhoto) {
+        var liveBadge = document.createElement('span');
+        liveBadge.className = 'live-badge';
+        liveBadge.textContent = 'LIVE';
+        cell.appendChild(liveBadge);
+      }
+
       cell.addEventListener('click', function () { openLightbox(idx); });
       gridEl.appendChild(cell);
 
@@ -223,6 +233,104 @@
     if (lb.objURL) { URL.revokeObjectURL(lb.objURL); lb.objURL = null; }
   }
 
+  /* ---------- M3：Live Photo 灯箱播放 ---------- */
+  var LIVE_DELAY = 1500; // 悬停/长按 1.5s 后触发
+  var live = {
+    timer: null,    // 未触发的延迟定时器
+    objURL: null,   // 正在播放的视频 objectURL
+    playing: false,
+    forIndex: -1,   // 本次播放/请求对应的灯箱条目（竞态防护）
+    fetching: false
+  };
+
+  function currentItem() {
+    return lb.index >= 0 && lb.index < state.items.length ? state.items[lb.index] : null;
+  }
+  function currentIsLivePhoto() {
+    var it = currentItem();
+    return !!(it && it.isLivePhoto && !isVideo(it));
+  }
+
+  function cancelLiveTimer() {
+    if (live.timer) { clearTimeout(live.timer); live.timer = null; }
+  }
+
+  // 停止播放并恢复静态图（同时使进行中的 fetch 结果失效）
+  function stopLive() {
+    cancelLiveTimer();
+    live.forIndex = -1;
+    live.playing = false;
+    lbLive.pause();
+    lbLive.removeAttribute('src');
+    lbLive.load();
+    lbLive.classList.add('hidden');
+    lbLive.classList.remove('playing');
+    lbMute.classList.add('hidden');
+    if (live.objURL) { URL.revokeObjectURL(live.objURL); live.objURL = null; }
+  }
+
+  // 开始加载并播放 /api/livephoto/<path>（fetch blob → objectURL，带鉴权）
+  function playLive(item) {
+    if (lb.index < 0 || state.items[lb.index] !== item) return; // 已切换
+    stopLive(); // 清理旧状态
+    live.forIndex = lb.index;
+    live.fetching = true;
+    fetchObjectURL('/api/livephoto/' + encodePath(item.path)).then(function (objURL) {
+      live.fetching = false;
+      // 播放期间已切换条目/已停止 → 丢弃
+      if (live.forIndex !== lb.index || lb.index < 0) { URL.revokeObjectURL(objURL); return; }
+      live.objURL = objURL;
+      live.playing = true;
+      lbLive.muted = true;
+      lbMute.innerHTML = '&#128263;';
+      lbMute.classList.remove('unmuted');
+      lbMute.classList.remove('hidden');
+      lbLive.src = objURL;
+      lbLive.classList.remove('hidden');
+      lbLive.play().catch(function () {});
+      // 淡入在 loadeddata 后触发，避免黑帧闪烁
+    }).catch(function () {
+      // 加载失败静默降级：保持静态图，不弹错
+      live.fetching = false;
+      live.forIndex = -1;
+    });
+  }
+  lbLive.addEventListener('loadeddata', function () {
+    if (live.playing) lbLive.classList.add('playing');
+  });
+  lbLive.addEventListener('error', function () {
+    stopLive(); // 解码失败静默回退静态图
+  });
+
+  function armLiveTimer() {
+    cancelLiveTimer();
+    if (!currentIsLivePhoto() || live.playing) return;
+    var item = currentItem();
+    live.timer = setTimeout(function () {
+      live.timer = null;
+      playLive(item);
+    }, LIVE_DELAY);
+  }
+
+  // 静音/取消静音切换
+  lbMute.addEventListener('click', function (e) {
+    e.stopPropagation();
+    lbLive.muted = !lbLive.muted;
+    lbMute.innerHTML = lbLive.muted ? '&#128263;' : '&#128266;';
+    lbMute.classList.toggle('unmuted', !lbLive.muted);
+  });
+  // PC：悬停 1.5s 播放，移出停止（在 img 与视频覆盖层之间移动不算移出）
+  function mediaHoverZone(el) { return el === lbImg || el === lbLive; }
+  lbImg.addEventListener('mouseenter', function () { armLiveTimer(); });
+  lbImg.addEventListener('mouseleave', function (e) {
+    if (mediaHoverZone(e.relatedTarget)) return;
+    stopLive();
+  });
+  lbLive.addEventListener('mouseleave', function (e) {
+    if (mediaHoverZone(e.relatedTarget)) return;
+    stopLive();
+  });
+
   function setZoom(zoomed, e) {
     lb.zoomed = zoomed;
     if (zoomed) {
@@ -243,7 +351,8 @@
     lb.index = i;
     var item = state.items[i];
 
-    // 释放上一项资源
+    // 释放上一项资源（含未触发的 Live Photo 定时器与播放）
+    stopLive();
     releaseLightboxURL();
     lbVideo.pause();
     lbVideo.removeAttribute('src');
@@ -300,6 +409,7 @@
   function closeLightbox() {
     lightbox.classList.add('hidden');
     document.body.style.overflow = '';
+    stopLive();
     lbVideo.pause();
     lbVideo.removeAttribute('src');
     lbVideo.load();
@@ -330,15 +440,25 @@
     setZoom(!lb.zoomed, e);
   });
 
-  // 触摸手势：左右滑动切换，下滑关闭，双击（轻点两次）缩放
+  // 触摸手势：左右滑动切换，下滑关闭，双击（轻点两次）缩放，长按 1.5s 播放 Live Photo
   var touch = null;
   var lastTap = 0;
   lbStage.addEventListener('touchstart', function (e) {
     if (e.touches.length === 1) {
       touch = { x: e.touches[0].clientX, y: e.touches[0].clientY, t: Date.now() };
+      // 长按播放：仅当落在静态图/播放层上且当前项为 Live Photo
+      if ((e.target === lbImg || e.target === lbLive) && currentIsLivePhoto()) armLiveTimer();
     }
   }, { passive: true });
+  lbStage.addEventListener('touchmove', function (e) {
+    if (!touch) return;
+    var dx = e.touches[0].clientX - touch.x;
+    var dy = e.touches[0].clientY - touch.y;
+    // 移动超过 10px 视为滑动：取消长按定时器；若已在播放也停止，让位滑动手势
+    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) stopLive();
+  }, { passive: true });
   lbStage.addEventListener('touchend', function (e) {
+    stopLive(); // 松手/触结束：取消未触发的长按定时器并停止播放
     if (!touch) return;
     var dx = e.changedTouches[0].clientX - touch.x;
     var dy = e.changedTouches[0].clientY - touch.y;
@@ -359,6 +479,10 @@
         lastTap = now;
       }
     }
+  }, { passive: true });
+  lbStage.addEventListener('touchcancel', function () {
+    touch = null;
+    stopLive();
   }, { passive: true });
 
   /* ---------- 启动 ---------- */

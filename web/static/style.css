@@ -404,3 +404,44 @@ body {
   .cell { border-radius: 4px; }
   .lb-nav { display: none; } /* 移动端用滑动手势切换 */
 }
+
+/* ================= M3 Live Photo ================= */
+
+/* 网格 LIVE 胶囊角标（右上角） */
+.live-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: rgba(30, 26, 22, 0.65);
+  color: #fff;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 0.15rem 0.5rem;
+  pointer-events: none;
+}
+
+/* 灯箱 Live Photo 视频层：绝对定位叠在静态图上，opacity 淡入 */
+.lb-live {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 100vw;
+  max-height: 100vh;
+  object-fit: contain;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none; /* 鼠标事件穿透到下方 img，hover 逻辑统一 */
+}
+.lb-live.playing { opacity: 1; }
+
+/* 播放时左下角静音按钮 */
+.lb-mute {
+  position: absolute;
+  left: 1rem;
+  bottom: 1rem;
+  font-size: 1.1rem;
+}
+.lb-mute.unmuted { background: rgba(181, 113, 63, 0.55); }
