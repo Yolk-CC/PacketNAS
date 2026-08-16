@@ -26,6 +26,10 @@ var ErrConflict = errors.New("target already exists")
 // ErrBadRequest is returned for invalid client input.
 var ErrBadRequest = errors.New("bad request")
 
+// MetaDirName is the internal per-root metadata directory (media index,
+// caches). It is hidden from directory listings.
+const MetaDirName = ".pocketnas"
+
 // Service performs filesystem operations confined to root.
 type Service struct {
 	root string // resolved (symlink-evaluated) absolute root
@@ -194,6 +198,11 @@ func (s *Service) List(rel, typ string) ([]FileInfo, error) {
 	}
 	out := make([]FileInfo, 0, len(entries))
 	for _, e := range entries {
+		// Never expose the internal metadata directory (media index DB,
+		// thumbnail/transcode caches) in listings, at any depth.
+		if e.Name() == MetaDirName {
+			continue
+		}
 		info, err := e.Info()
 		if err != nil {
 			continue

@@ -198,3 +198,41 @@ func TestMimeType(t *testing.T) {
 		t.Fatal(got)
 	}
 }
+
+func TestListHidesMetaDir(t *testing.T) {
+	svc, root := newTestService(t)
+	// Internal metadata dir at root and nested: must be hidden everywhere.
+	if err := os.MkdirAll(filepath.Join(root, MetaDirName, "thumb"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "sub", MetaDirName), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "visible.txt"), []byte("v"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "sub", "inner.txt"), []byte("i"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	infos, err := svc.List("/", "all")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, i := range infos {
+		if i.Name == MetaDirName {
+			t.Fatalf("%s leaked into root listing: %+v", MetaDirName, infos)
+		}
+	}
+	if len(infos) != 2 { // sub/ + visible.txt
+		t.Fatalf("root listing = %+v", infos)
+	}
+
+	infos, err = svc.List("/sub", "all")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(infos) != 1 || infos[0].Name != "inner.txt" {
+		t.Fatalf("nested %s not hidden: %+v", MetaDirName, infos)
+	}
+}
