@@ -122,6 +122,8 @@ type galleryItem struct {
 	ThumbURL    string `json:"thumbUrl"`
 	IsLivePhoto bool   `json:"isLivePhoto"` // M3
 	LiveType    string `json:"liveType"`    // pixel | pixel_legacy | samsung | ios | ""
+	// M4: available playback tiers for videos (always all tiers + original).
+	Resolutions []string `json:"resolutions,omitempty"`
 }
 
 // Gallery handles GET /api/gallery?offset=0&limit=200&type=all|image|video.
@@ -149,6 +151,10 @@ func (h *Handler) Gallery(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]galleryItem, 0, len(items))
 	for _, m := range items {
+		var resolutions []string
+		if strings.HasPrefix(m.MimeType, "video/") {
+			resolutions = []string{"360p", "720p", "1080p", "original"}
+		}
 		out = append(out, galleryItem{
 			Path:        m.Path,
 			Name:        m.Name,
@@ -160,6 +166,7 @@ func (h *Handler) Gallery(w http.ResponseWriter, r *http.Request) {
 			ThumbURL:    "/api/thumb" + thumbPathEscape(m.Path) + "?w=300&h=300",
 			IsLivePhoto: m.IsLivePhoto,
 			LiveType:    m.LiveType,
+			Resolutions: resolutions,
 		})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"total": total, "items": out})

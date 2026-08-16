@@ -25,6 +25,7 @@ import (
 	"pocket-nas/internal/files"
 	"pocket-nas/internal/livephoto"
 	"pocket-nas/internal/media"
+	"pocket-nas/internal/transcode"
 	"pocket-nas/web"
 )
 
@@ -142,6 +143,7 @@ func newRouter(cfg config.Config, svc *files.Service) (http.Handler, func()) {
 		mediaOnce sync.Once
 		mediaH    *media.Handler
 		liveH     *livephoto.Handler
+		videoH    *transcode.Handler
 		mediaErr  error
 	)
 	getMedia := func() (*media.Handler, error) {
@@ -149,6 +151,9 @@ func newRouter(cfg config.Config, svc *files.Service) (http.Handler, func()) {
 			mediaH, mediaErr = media.NewHandler(svc.Root())
 			if mediaErr == nil {
 				liveH, mediaErr = livephoto.NewHandler(svc.Root(), mediaH.LiveLookup)
+			}
+			if mediaErr == nil {
+				videoH, mediaErr = transcode.NewHandler(svc.Root())
 			}
 			if mediaErr == nil {
 				mediaH.StartBackgroundScan()
@@ -193,6 +198,10 @@ func newRouter(cfg config.Config, svc *files.Service) (http.Handler, func()) {
 
 			// M3: Live Photo video extraction.
 			r.Get("/livephoto/*", withMedia(func(_ *media.Handler, w http.ResponseWriter, r *http.Request) { liveH.ServeHTTP(w, r) }))
+
+			// M4: multi-resolution video streaming / transcoding.
+			r.Get("/video/status/*", withMedia(func(_ *media.Handler, w http.ResponseWriter, r *http.Request) { videoH.Status(w, r) }))
+			r.Get("/video/*", withMedia(func(_ *media.Handler, w http.ResponseWriter, r *http.Request) { videoH.Video(w, r) }))
 		})
 	})
 
