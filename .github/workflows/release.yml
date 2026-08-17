@@ -54,7 +54,7 @@ jobs:
       - name: Install gomobile
         run: |
           # 与 go.mod 中 x/mobile 同版本，避免新版 gomobile 的 tool 指令检查（go 1.24+）
-          go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20241108191913-fa514ef75a0f
+          go install golang.org/x/mobile/cmd/gomobile@v0.0.0-20241108191957-fa514ef75a0f
           gomobile init
       - name: Build Go core .aar
         run: |

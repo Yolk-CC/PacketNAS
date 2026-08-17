@@ -7,7 +7,7 @@ require (
 	github.com/go-chi/chi/v5 v5.3.1
 	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd
 	golang.org/x/image v0.24.0
-	golang.org/x/mobile v0.0.0-20241108191913-fa514ef75a0f
+	golang.org/x/mobile v0.0.0-20241108191957-fa514ef75a0f
 	modernc.org/sqlite v1.34.5
 )
 
