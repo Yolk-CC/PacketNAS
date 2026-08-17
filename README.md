@@ -16,6 +16,10 @@ Android（薄壳 APK）以及 Docker 中。
   iOS Live Photo（同名 `.heic`/`.jpg` + `.mov` 配对），在线提取并播放内嵌视频。
 - **视频转码**：按需 ffmpeg 转码，多分辨率（360p / 720p / 1080p），任务队列 +
   磁盘缓存 + 进度查询（`/api/video/*`）。需系统安装 ffmpeg。
+- **多共享路径**：设置页可配置多个共享目录（名称 + 路径），客户端仅能访问
+  共享内的文件；未配置时保持整根可见（兼容模式）。配置持久化于
+  `<Root>/.pocketnas/settings.json`（`GET/PUT /api/settings/shares`，
+  目录选择器由 `GET /api/system/browse` 支持）。
 - **鉴权**：可选密码登录（token 认证，`-password` 开启；不设置则免登录）。
 - **系统信息**：`/api/system/info` 返回版本、存储根、磁盘余量与 Go 版本。
 

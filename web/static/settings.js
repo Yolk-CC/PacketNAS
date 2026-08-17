@@ -138,8 +138,9 @@
     browsePathEl.textContent = path || '/';
     var url = '/api/system/browse';
     if (path) url += '?path=' + encodeURIComponent(path);
-    api(url).then(function (entries) {
-      renderDirs(entries || []);
+    api(url).then(function (body) {
+      var entries = (body && body.dirs) || (Array.isArray(body) ? body : []);
+      renderDirs(entries);
     }).catch(function () {});
   }
 
@@ -173,9 +174,11 @@
   });
 
   /* ---------- 启动 ---------- */
-  if (!getToken()) {
-    window.location.href = 'index.html';
-    return;
-  }
-  loadShares();
+  // 无密码模式下 token 可能从未设置；以真实 API 探测为准，仅 401 才跳回文件页
+  api('/api/settings/shares').then(function () {
+    loadShares();
+  }).catch(function (e) {
+    if (e && e.message === 'unauthorized') return; // api() 已处理跳转
+    loadShares();
+  });
 })();
