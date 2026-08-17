@@ -475,3 +475,84 @@ body {
   pointer-events: none;
   z-index: 3;
 }
+
+/* ---------- M7 设置页 ---------- */
+.settings-area {
+  max-width: 760px;
+  margin: 1.5rem auto;
+  padding: 0 1rem;
+}
+.settings-card h2 { margin-top: 0; }
+.add-share {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+.add-share input {
+  flex: 1;
+  min-width: 10rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border, #ddd);
+  border-radius: 6px;
+}
+.settings-actions {
+  margin-top: 1.2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+/* 目录选择器模态框 */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.modal-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 1.2rem;
+  width: min(480px, 92vw);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+.modal-card h3 { margin-top: 0; }
+.modal-path {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.6rem;
+}
+.browse-path {
+  font-family: monospace;
+  word-break: break-all;
+}
+.dir-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 8rem;
+  border: 1px solid #eee;
+  border-radius: 6px;
+}
+.dir-item {
+  padding: 0.5rem 0.7rem;
+  cursor: pointer;
+  border-bottom: 1px solid #f3f3f3;
+}
+.dir-item:hover { background: #f7f4f0; }
+.dir-item .icon { margin-right: 0.5rem; }
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 0.9rem;
+}
