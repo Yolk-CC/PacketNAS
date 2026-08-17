@@ -12,6 +12,9 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
+
+	"pocket-nas/internal/settings"
 )
 
 // ErrForbidden is returned when a resolved path escapes the storage root.
@@ -30,9 +33,42 @@ var ErrBadRequest = errors.New("bad request")
 // caches). It is hidden from directory listings.
 const MetaDirName = ".pocketnas"
 
-// Service performs filesystem operations confined to root.
+// Service performs filesystem operations confined to root (legacy mode)
+// or to the configured shares (shared mode, SPEC-M7 §2).
 type Service struct {
 	root string // resolved (symlink-evaluated) absolute root
+
+	mu     sync.RWMutex
+	shares []settings.Share // non-empty → shared mode
+}
+
+// SetShares switches the service to shared mode (len(shares)>0) or back to
+// legacy mode (empty). Paths are re-normalized defensively.
+func (s *Service) SetShares(shares []settings.Share) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if len(shares) == 0 {
+		s.shares = nil
+		return
+	}
+	out := make([]settings.Share, len(shares))
+	for i, sh := range shares {
+		out[i] = settings.Share{Name: sh.Name, Path: ResolveRoot(sh.Path)}
+	}
+	s.shares = out
+}
+
+// Shares returns a copy of the configured shares (nil in legacy mode), for
+// the media scanner and the settings endpoints.
+func (s *Service) Shares() []settings.Share {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.shares == nil {
+		return nil
+	}
+	out := make([]settings.Share, len(s.shares))
+	copy(out, s.shares)
+	return out
 }
 
 // New creates a Service for the given root directory. The root is resolved
@@ -74,7 +110,61 @@ func (s *Service) Root() string { return s.root }
 // do not exist yet (upload, mkdir, rename target) EvalSymlinks degrades to
 // evaluating the deepest existing ancestor.
 func (s *Service) resolve(rel string) (string, error) {
-	return resolve(s.root, rel)
+	s.mu.RLock()
+	shares := s.shares
+	s.mu.RUnlock()
+	if len(shares) == 0 {
+		return resolve(s.root, rel)
+	}
+	// Shared mode: the first path segment selects a share by name, the rest
+	// is resolved inside that share with the same traversal rules.
+	if rel == "" {
+		rel = "/"
+	}
+	for _, seg := range strings.FieldsFunc(filepath.ToSlash(rel), func(r rune) bool { return r == '/' }) {
+		if seg == ".." {
+			return "", ErrForbidden
+		}
+	}
+	cleaned := strings.TrimPrefix(path.Clean("/"+rel), "/")
+	if cleaned == "" {
+		// The virtual root has no filesystem counterpart.
+		return "", ErrNotFound
+	}
+	name, rest := cleaned, ""
+	if i := strings.Index(cleaned, "/"); i >= 0 {
+		name, rest = cleaned[:i], cleaned[i+1:]
+	}
+	for _, sh := range shares {
+		if sh.Name == name {
+			return resolve(sh.Path, rest)
+		}
+	}
+	return "", fmt.Errorf("%w: no such share %q", ErrNotFound, name)
+}
+
+// Resolve is the exported form of Service.resolve so other packages
+// (media, livephoto, transcode) apply the exact same path-safety rules,
+// including shared-mode share-name resolution.
+func (s *Service) Resolve(rel string) (string, error) {
+	return s.resolve(rel)
+}
+
+// isVirtualRootAbs reports whether abs is the service root (legacy mode)
+// or one of the share root directories (shared mode); such paths cannot be
+// renamed/moved/deleted.
+func (s *Service) isVirtualRootAbs(abs string) bool {
+	if abs == s.root {
+		return true
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, sh := range s.shares {
+		if abs == sh.Path {
+			return true
+		}
+	}
+	return false
 }
 
 func resolve(root, rel string) (string, error) {
@@ -175,6 +265,18 @@ func mimeCategory(mime string) string {
 // relPath converts an absolute path inside root back to a root-relative
 // slash path with a leading "/".
 func (s *Service) relPath(abs string) string {
+	s.mu.RLock()
+	shares := s.shares
+	s.mu.RUnlock()
+	for _, sh := range shares {
+		if abs == sh.Path {
+			return "/" + sh.Name
+		}
+		if strings.HasPrefix(abs, sh.Path+string(os.PathSeparator)) {
+			rel := strings.TrimPrefix(abs, sh.Path+string(os.PathSeparator))
+			return "/" + sh.Name + "/" + filepath.ToSlash(rel)
+		}
+	}
 	if abs == s.root {
 		return "/"
 	}
@@ -185,6 +287,9 @@ func (s *Service) relPath(abs string) string {
 // List returns the directory entries of rel, directories first, then sorted
 // by name. typ filters non-directory entries: "all", "image" or "video".
 func (s *Service) List(rel, typ string) ([]FileInfo, error) {
+	if (rel == "" || rel == "/") && len(s.Shares()) > 0 {
+		return s.listShares(), nil
+	}
 	abs, err := s.resolve(rel)
 	if err != nil {
 		return nil, err
@@ -228,6 +333,28 @@ func (s *Service) List(rel, typ string) ([]FileInfo, error) {
 		return out[i].Name < out[j].Name
 	})
 	return out, nil
+}
+
+// listShares returns the pseudo-directory entries of the virtual root in
+// shared mode: one directory entry per configured share.
+func (s *Service) listShares() []FileInfo {
+	shares := s.Shares()
+	out := make([]FileInfo, 0, len(shares))
+	for _, sh := range shares {
+		var mod int64
+		if info, err := os.Stat(sh.Path); err == nil {
+			mod = info.ModTime().Unix()
+		}
+		out = append(out, FileInfo{
+			Name:     sh.Name,
+			Path:     "/" + sh.Name,
+			Modified: mod,
+			IsDir:    true,
+			MimeType: "inode/directory",
+		})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out
 }
 
 // Open resolves rel and opens it for reading (used by download).
@@ -315,7 +442,7 @@ func (s *Service) Rename(rel, newName string) error {
 	if err != nil {
 		return err
 	}
-	if abs == s.root {
+	if s.isVirtualRootAbs(abs) {
 		return fmt.Errorf("%w: cannot rename root", ErrBadRequest)
 	}
 	if _, err := os.Stat(abs); err != nil {
@@ -358,7 +485,7 @@ func (s *Service) Move(srcRels []string, destDirRel string) error {
 		if err != nil {
 			return err
 		}
-		if srcAbs == s.root {
+		if s.isVirtualRootAbs(srcAbs) {
 			return fmt.Errorf("%w: cannot move root", ErrBadRequest)
 		}
 		if _, err := os.Stat(srcAbs); err != nil {
@@ -428,7 +555,7 @@ func (s *Service) Delete(rels []string) error {
 		if err != nil {
 			return err
 		}
-		if abs == s.root {
+		if s.isVirtualRootAbs(abs) {
 			return fmt.Errorf("%w: cannot delete root", ErrBadRequest)
 		}
 		if _, err := os.Lstat(abs); err != nil {

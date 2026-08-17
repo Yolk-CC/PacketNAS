@@ -43,17 +43,55 @@ func isImage(name string) bool { return imageExts[strings.ToLower(filepath.Ext(n
 func isVideo(name string) bool { return videoExts[strings.ToLower(filepath.Ext(name))] }
 func isMedia(name string) bool { return isImage(name) || isVideo(name) }
 
-// Scanner walks the storage root and keeps the index up to date.
+// ScanRoot is one directory tree to scan (SPEC-M7 §4). Prefix is the
+// virtual path prefix prepended to indexed paths: "" in legacy mode,
+// "/<shareName>" in shared mode.
+type ScanRoot struct {
+	Prefix string
+	Dir    string // resolved absolute directory
+}
+
+// Scanner walks the storage root(s) and keeps the index up to date.
 type Scanner struct {
-	store    *Store
-	root     string // resolved root (files.ResolveRoot)
-	scanning atomic.Bool
-	progress atomic.Int64 // items processed in the current/last scan
+	store     *Store
+	root      string                           // resolved root (files.ResolveRoot)
+	rootsFn   func() []ScanRoot                // nil → legacy single root
+	resolveFn func(rel string) (string, error) // nil → files.Resolve(sc.root, rel)
+	scanning  atomic.Bool
+	progress  atomic.Int64 // items processed in the current/last scan
 }
 
 // NewScanner creates a Scanner for root (should be files.ResolveRoot output).
 func NewScanner(store *Store, root string) *Scanner {
 	return &Scanner{store: store, root: root}
+}
+
+// SetRootsFn makes the scanner traverse the roots returned by fn on every
+// scan (shared mode: one ScanRoot per share). fn is consulted per scan, so
+// share changes take effect on the next scan. resolveFn (may be nil)
+// resolves virtual paths back to absolute paths (e.g. for iOS Live Photo
+// companion lookup).
+func (sc *Scanner) SetRootsFn(fn func() []ScanRoot, resolveFn func(rel string) (string, error)) {
+	sc.rootsFn = fn
+	sc.resolveFn = resolveFn
+}
+
+// resolve maps a virtual path to an absolute filesystem path.
+func (sc *Scanner) resolve(rel string) (string, error) {
+	if sc.resolveFn != nil {
+		return sc.resolveFn(rel)
+	}
+	return files.Resolve(sc.root, rel)
+}
+
+// roots returns the current scan roots (legacy: just sc.root).
+func (sc *Scanner) roots() []ScanRoot {
+	if sc.rootsFn != nil {
+		if roots := sc.rootsFn(); len(roots) > 0 {
+			return roots
+		}
+	}
+	return []ScanRoot{{Prefix: "", Dir: sc.root}}
 }
 
 // Scanning reports whether a scan is currently running.
@@ -68,10 +106,23 @@ type fileJob struct {
 	rel string
 }
 
-// walk collects all media files under root, skipping .pocketnas and hidden
-// directories, honoring ctx cancellation.
+// walk collects all media files under every scan root, skipping .pocketnas
+// and hidden directories, honoring ctx cancellation. rel is the virtual
+// path (scan-root prefix + path inside the root).
 func (sc *Scanner) walk(ctx context.Context, fn func(abs, rel string, info fs.FileInfo) bool) error {
-	return filepath.WalkDir(sc.root, func(p string, d fs.DirEntry, err error) error {
+	for _, root := range sc.roots() {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		if err := sc.walkRoot(ctx, root, fn); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (sc *Scanner) walkRoot(ctx context.Context, root ScanRoot, fn func(abs, rel string, info fs.FileInfo) bool) error {
+	return filepath.WalkDir(root.Dir, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil // skip unreadable entries, keep scanning
 		}
@@ -79,7 +130,7 @@ func (sc *Scanner) walk(ctx context.Context, fn func(abs, rel string, info fs.Fi
 			return ctx.Err()
 		}
 		if d.IsDir() {
-			if p == sc.root {
+			if p == root.Dir {
 				return nil
 			}
 			name := d.Name()
@@ -95,7 +146,7 @@ func (sc *Scanner) walk(ctx context.Context, fn func(abs, rel string, info fs.Fi
 		if err != nil {
 			return nil
 		}
-		rel := "/" + filepath.ToSlash(strings.TrimPrefix(p, sc.root+string(os.PathSeparator)))
+		rel := root.Prefix + "/" + filepath.ToSlash(strings.TrimPrefix(p, root.Dir+string(os.PathSeparator)))
 		if !fn(p, rel, info) {
 			return context.Canceled
 		}
@@ -278,7 +329,7 @@ func (sc *Scanner) findCompanion(m Media) (string, int64, bool) {
 	var cands []cand
 	for _, movExt := range []string{".mov", ".MOV"} {
 		rel := "/" + filepath.ToSlash(filepath.Join(dir, base+movExt))
-		abs, err := files.Resolve(sc.root, rel)
+		abs, err := sc.resolve(rel)
 		if err != nil {
 			continue
 		}

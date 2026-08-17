@@ -40,9 +40,21 @@ type Lookup func(rel string) (*Meta, error)
 // Handler serves GET /api/livephoto/<path...>: the video part of a Live
 // Photo, extracted to a disk cache so Range requests work.
 type Handler struct {
-	root     string // resolved storage root
-	cacheDir string
-	lookup   Lookup
+	root      string // resolved storage root
+	cacheDir  string
+	lookup    Lookup
+	resolveFn func(rel string) (string, error) // nil → files.Resolve(root, rel)
+}
+
+// SetResolver makes the handler resolve virtual paths (shared mode,
+// SPEC-M7) via fn instead of the legacy single-root resolution.
+func (h *Handler) SetResolver(fn func(rel string) (string, error)) { h.resolveFn = fn }
+
+func (h *Handler) resolve(rel string) (string, error) {
+	if h.resolveFn != nil {
+		return h.resolveFn(rel)
+	}
+	return files.Resolve(h.root, rel)
 }
 
 // NewHandler creates a Handler for the resolved root.
@@ -79,7 +91,7 @@ func cacheName(rel string, mtime int64) string {
 // ServeHTTP handles GET /api/livephoto/<path...>.
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rel := "/" + strings.TrimPrefix(chi.URLParam(r, "*"), "/")
-	abs, err := files.Resolve(h.root, rel)
+	abs, err := h.resolve(rel)
 	if err != nil {
 		if errors.Is(err, files.ErrForbidden) {
 			writeError(w, http.StatusForbidden, "FORBIDDEN", err.Error())
@@ -101,7 +113,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if meta.Type == "ios" {
 		// Serve the companion .mov directly.
-		cAbs, err := files.Resolve(h.root, meta.Companion)
+		cAbs, err := h.resolve(meta.Companion)
 		if err != nil {
 			writeError(w, http.StatusForbidden, "FORBIDDEN", err.Error())
 			return
