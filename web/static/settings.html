@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PocketNAS 设置</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="main-view" class="view">
+  <header class="topbar">
+    <div class="brand">PocketNAS</div>
+    <nav class="tabs">
+      <a class="tab" href="index.html">文件</a>
+      <a class="tab" href="gallery.html">相册</a>
+      <a class="tab active" href="settings.html">设置</a>
+    </nav>
+    <div class="actions">
+      <a class="btn subtle" href="index.html">返回文件</a>
+    </div>
+  </header>
+
+  <main class="settings-area">
+    <section class="settings-card">
+      <h2>共享路径</h2>
+      <p id="legacy-hint" class="muted hidden">当前未配置共享，客户端可访问整个根目录</p>
+      <table class="file-table shares-table">
+        <thead>
+          <tr><th>名称</th><th>路径</th><th class="ops-col">操作</th></tr>
+        </thead>
+        <tbody id="share-list"></tbody>
+      </table>
+      <p id="empty-hint" class="muted center hidden">尚未添加共享</p>
+
+      <div class="add-share">
+        <input type="text" id="share-name" placeholder="共享名称（如 照片）">
+        <input type="text" id="share-path" placeholder="目录路径" readonly>
+        <button id="btn-browse" class="btn">选择目录…</button>
+        <button id="btn-add" class="btn">添加共享</button>
+      </div>
+
+      <div class="settings-actions">
+        <button id="btn-save" class="btn primary">保存</button>
+        <span id="save-status" class="muted"></span>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- 目录选择器模态框 -->
+<div id="dir-modal" class="modal hidden">
+  <div class="modal-card">
+    <h3>选择目录</h3>
+    <div class="modal-path">
+      <button id="btn-up" class="btn subtle">返回上级</button>
+      <span id="browse-path" class="browse-path">/</span>
+    </div>
+    <ul id="dir-list" class="dir-list"></ul>
+    <p id="dir-empty" class="muted center hidden">此目录下没有子目录</p>
+    <div class="modal-actions">
+      <button id="btn-cancel" class="btn subtle">取消</button>
+      <button id="btn-choose" class="btn primary">选择当前目录</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="settings.js"></script>
+</body>
+</html>
