@@ -50,10 +50,10 @@ jobs:
           distribution: temurin
           java-version: "17"
       - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
       - name: Install gomobile
         run: |
           go install golang.org/x/mobile/cmd/gomobile@latest
-          go install golang.org/x/mobile/cmd/gobind@latest
           gomobile init
       - name: Build Go core .aar
         run: |
@@ -63,11 +63,8 @@ jobs:
       - name: Assemble APK
         working-directory: android
         run: |
-          if [ -x ./gradlew ]; then
-            ./gradlew assembleDebug --no-daemon
-          else
-            gradle assembleDebug --no-daemon
-          fi
+          gradle wrapper --gradle-version 8.9 --no-daemon
+          ./gradlew assembleDebug --no-daemon
       - name: Upload APK to release
         uses: softprops/action-gh-release@v2
         with:
