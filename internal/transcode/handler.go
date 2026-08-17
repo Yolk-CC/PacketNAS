@@ -14,8 +14,9 @@ import (
 
 // Handler serves GET /api/video/<path>?res= and /api/video/status/<path>?res=.
 type Handler struct {
-	root string // resolved storage root
-	mgr  *Manager
+	root      string // resolved storage root
+	mgr       *Manager
+	resolveFn func(rel string) (string, error) // nil → files.Resolve(root, rel)
 }
 
 // NewHandler creates a Handler with its own Manager (queue + workers).
@@ -25,6 +26,20 @@ func NewHandler(root string) (*Handler, error) {
 		return nil, err
 	}
 	return &Handler{root: root, mgr: mgr}, nil
+}
+
+// SetResolver makes the handler (and its manager) resolve virtual paths
+// (shared mode, SPEC-M7) via fn instead of legacy single-root resolution.
+func (h *Handler) SetResolver(fn func(rel string) (string, error)) {
+	h.resolveFn = fn
+	h.mgr.SetResolver(fn)
+}
+
+func (h *Handler) resolve(rel string) (string, error) {
+	if h.resolveFn != nil {
+		return h.resolveFn(rel)
+	}
+	return files.Resolve(h.root, rel)
 }
 
 // Close stops the manager.
@@ -58,7 +73,7 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 // resolveVideo validates the wildcard path: inside root, exists, is a video.
 func (h *Handler) resolveVideo(w http.ResponseWriter, r *http.Request) (rel, abs string, info os.FileInfo, ok bool) {
 	rel = "/" + strings.TrimPrefix(chi.URLParam(r, "*"), "/")
-	abs, err := files.Resolve(h.root, rel)
+	abs, err := h.resolve(rel)
 	if err != nil {
 		if errors.Is(err, files.ErrForbidden) {
 			writeError(w, http.StatusForbidden, "FORBIDDEN", err.Error())

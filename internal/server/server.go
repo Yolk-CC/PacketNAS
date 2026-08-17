@@ -13,7 +13,12 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"os/signal"
+	"path/filepath"
+	"runtime"
+	"sort"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -25,6 +30,7 @@ import (
 	"pocket-nas/internal/files"
 	"pocket-nas/internal/livephoto"
 	"pocket-nas/internal/media"
+	"pocket-nas/internal/settings"
 	"pocket-nas/internal/transcode"
 	"pocket-nas/web"
 )
@@ -122,6 +128,73 @@ func loginHandler(cfg config.Config, tokens *tokenStore) http.HandlerFunc {
 	}
 }
 
+// writeShares responds with {"shares":[...], "legacy":bool} (SPEC-M7 §3).
+func writeShares(w http.ResponseWriter, shares []settings.Share) {
+	if shares == nil {
+		shares = []settings.Share{}
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"shares": shares,
+		"legacy": len(shares) == 0,
+	})
+}
+
+// browseHandler implements GET /api/system/browse?path=<abs> (SPEC-M7 §3):
+// lists only the sub-directories of an absolute path for the settings
+// directory picker. Dot-directories are hidden. path omitted → "/"
+// (Windows: list of existing drive roots).
+func browseHandler() http.HandlerFunc {
+	type entry struct {
+		Name string `json:"name"`
+		Path string `json:"path"`
+	}
+	return func(w http.ResponseWriter, r *http.Request) {
+		p := r.URL.Query().Get("path")
+		if p == "" && runtime.GOOS == "windows" {
+			var drives []entry
+			for c := 'A'; c <= 'Z'; c++ {
+				d := string(c) + `:\`
+				if info, err := os.Stat(d); err == nil && info.IsDir() {
+					drives = append(drives, entry{Name: string(c) + ":", Path: d})
+				}
+			}
+			if drives == nil {
+				drives = []entry{}
+			}
+			writeBrowseJSON(w, "", drives)
+			return
+		}
+		if p == "" {
+			p = "/"
+		}
+		info, err := os.Stat(p)
+		if err != nil || !info.IsDir() {
+			writeAuthError(w, http.StatusBadRequest, "BAD_REQUEST", "not a readable directory: "+p)
+			return
+		}
+		des, err := os.ReadDir(p)
+		if err != nil {
+			writeAuthError(w, http.StatusBadRequest, "BAD_REQUEST", "not a readable directory: "+p)
+			return
+		}
+		out := make([]entry, 0, len(des))
+		for _, de := range des {
+			if !de.IsDir() || strings.HasPrefix(de.Name(), ".") {
+				continue
+			}
+			out = append(out, entry{Name: de.Name(), Path: filepath.Join(p, de.Name())})
+		}
+		sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+		writeBrowseJSON(w, p, out)
+	}
+}
+
+func writeBrowseJSON(w http.ResponseWriter, path string, dirs any) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	_ = json.NewEncoder(w).Encode(map[string]any{"path": path, "dirs": dirs})
+}
+
 // NewRouter builds the chi router (exported for tests).
 func NewRouter(cfg config.Config, svc *files.Service) http.Handler {
 	r, _ := newRouter(cfg, svc)
@@ -135,6 +208,30 @@ func NewRouter(cfg config.Config, svc *files.Service) http.Handler {
 func newRouter(cfg config.Config, svc *files.Service) (http.Handler, func()) {
 	h := files.NewHandler(svc)
 	tokens := newTokenStore()
+
+	// M7: load configured shares; failure disables shared mode (legacy
+	// single-root) but never breaks file management.
+	settingsStore, settingsErr := settings.Load(cfg.Root)
+	if settingsErr != nil {
+		log.Printf("settings: %v (falling back to legacy mode)", settingsErr)
+		settingsStore = settings.New(cfg.Root)
+	}
+	svc.SetShares(settingsStore.Shares())
+
+	// Media wiring for shared mode: scan roots and virtual-path resolution
+	// follow the live share list of svc.
+	rootsFn := func() []media.ScanRoot {
+		shares := svc.Shares()
+		if len(shares) == 0 {
+			return []media.ScanRoot{{Prefix: "", Dir: svc.Root()}}
+		}
+		out := make([]media.ScanRoot, 0, len(shares))
+		for _, sh := range shares {
+			out = append(out, media.ScanRoot{Prefix: "/" + sh.Name, Dir: sh.Path})
+		}
+		return out
+	}
+	resolveFn := func(rel string) (string, error) { return svc.Resolve(rel) }
 
 	// Lazy media handler: opened at most once, on first media request or
 	// warmup. Failure disables media endpoints with 500 but never breaks
@@ -150,10 +247,15 @@ func newRouter(cfg config.Config, svc *files.Service) (http.Handler, func()) {
 		mediaOnce.Do(func() {
 			mediaH, mediaErr = media.NewHandler(svc.Root())
 			if mediaErr == nil {
+				mediaH.SetShares(rootsFn, resolveFn)
 				liveH, mediaErr = livephoto.NewHandler(svc.Root(), mediaH.LiveLookup)
 			}
 			if mediaErr == nil {
+				liveH.SetResolver(resolveFn)
 				videoH, mediaErr = transcode.NewHandler(svc.Root())
+			}
+			if mediaErr == nil {
+				videoH.SetResolver(resolveFn)
 			}
 			if mediaErr == nil {
 				mediaH.StartBackgroundScan()
@@ -189,6 +291,36 @@ func newRouter(cfg config.Config, svc *files.Service) (http.Handler, func()) {
 			r.Post("/upload", h.Upload)
 			r.Get("/download/*", h.Download)
 			r.Get("/system/info", h.SystemInfo)
+			r.Get("/system/browse", browseHandler())
+
+			// M7: multi-share settings.
+			r.Get("/settings/shares", func(w http.ResponseWriter, r *http.Request) {
+				writeShares(w, settingsStore.Shares())
+			})
+			r.Put("/settings/shares", func(w http.ResponseWriter, r *http.Request) {
+				var req struct {
+					Shares []settings.Share `json:"shares"`
+				}
+				if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+					writeAuthError(w, http.StatusBadRequest, "invalid_share", "invalid request body")
+					return
+				}
+				if err := settingsStore.SetShares(req.Shares); err != nil {
+					writeAuthError(w, http.StatusBadRequest, "invalid_share", err.Error())
+					return
+				}
+				svc.SetShares(settingsStore.Shares())
+				// Async full rescan so the media index reflects the new
+				// roots (and drops rows of removed shares).
+				if mh, err := getMedia(); err == nil {
+					go func() {
+						if err := mh.Scanner().Full(context.Background(), nil); err != nil {
+							log.Printf("media: rescan after shares update: %v", err)
+						}
+					}()
+				}
+				writeShares(w, settingsStore.Shares())
+			})
 
 			// M2 media routes (same auth middleware as the rest of /api).
 			r.Get("/gallery", withMedia(func(mh *media.Handler, w http.ResponseWriter, r *http.Request) { mh.Gallery(w, r) }))

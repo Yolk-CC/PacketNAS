@@ -37,10 +37,11 @@ type Job struct {
 // Manager owns the job queue, workers, in-memory state and its
 // persistence in .pocketnas/transcode.db.
 type Manager struct {
-	root     string // resolved storage root
-	cacheDir string
-	db       *sql.DB
-	ffmpeg   string // "" when ffmpeg is unavailable (degraded mode)
+	root      string                           // resolved storage root
+	resolveFn func(rel string) (string, error) // nil → legacy Join(root, rel)
+	cacheDir  string
+	db        *sql.DB
+	ffmpeg    string // "" when ffmpeg is unavailable (degraded mode)
 
 	mu   sync.Mutex
 	jobs map[string]*Job // key: path+"\x00"+res
@@ -214,6 +215,25 @@ func (m *Manager) worker() {
 	}
 }
 
+// SetResolver makes the manager resolve virtual job paths (shared mode,
+// SPEC-M7) via fn instead of the legacy single-root join.
+func (m *Manager) SetResolver(fn func(rel string) (string, error)) {
+	m.mu.Lock()
+	m.resolveFn = fn
+	m.mu.Unlock()
+}
+
+// resolveAbs maps a job's root-relative slash path to an absolute path.
+func (m *Manager) resolveAbs(rel string) (string, error) {
+	m.mu.Lock()
+	fn := m.resolveFn
+	m.mu.Unlock()
+	if fn != nil {
+		return fn(rel)
+	}
+	return filepath.Join(m.root, filepath.FromSlash(rel[1:])), nil
+}
+
 func (m *Manager) runJob(key string) {
 	m.mu.Lock()
 	j, ok := m.jobs[key]
@@ -228,20 +248,27 @@ func (m *Manager) runJob(key string) {
 	job := *j
 	m.mu.Unlock()
 
-	abs := filepath.Join(m.root, filepath.FromSlash(job.Path[1:]))
+	abs, absErr := m.resolveAbs(job.Path)
 	out := filepath.Join(m.cacheDir, job.Output)
 	tmp := out + ".tmp.mp4" // keep .mp4 suffix: ffmpeg infers the muxer by extension
 	defer os.Remove(tmp)
 
-	hasAudio, durMs := probe(m.ctx, abs)
-	err := run(m.ctx, m.ffmpeg, abs, tmp, Resolutions[job.Res], hasAudio, durMs,
-		func(pct int) {
-			m.mu.Lock()
-			if cur, ok := m.jobs[key]; ok && cur.Status == StatusRunning {
-				cur.Progress = pct
-			}
-			m.mu.Unlock()
-		})
+	var hasAudio bool
+	var durMs int64
+	var err error
+	if absErr != nil {
+		err = absErr
+	} else {
+		hasAudio, durMs = probe(m.ctx, abs)
+		err = run(m.ctx, m.ffmpeg, abs, tmp, Resolutions[job.Res], hasAudio, durMs,
+			func(pct int) {
+				m.mu.Lock()
+				if cur, ok := m.jobs[key]; ok && cur.Status == StatusRunning {
+					cur.Progress = pct
+				}
+				m.mu.Unlock()
+			})
+	}
 
 	m.mu.Lock()
 	defer m.mu.Unlock()

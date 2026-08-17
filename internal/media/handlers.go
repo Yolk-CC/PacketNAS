@@ -26,10 +26,11 @@ const (
 
 // Handler exposes the gallery / thumbnail / media-file HTTP API.
 type Handler struct {
-	store   *Store
-	scanner *Scanner
-	thumber *Thumber
-	root    string // resolved root
+	store     *Store
+	scanner   *Scanner
+	thumber   *Thumber
+	root      string                           // resolved root
+	resolveFn func(rel string) (string, error) // nil → files.Resolve(root, rel)
 }
 
 // NewHandler opens the index store under root and wires up the scanner and
@@ -54,6 +55,23 @@ func NewHandler(root string) (*Handler, error) {
 
 // Close releases the index database.
 func (h *Handler) Close() error { return h.store.Close() }
+
+// SetShares configures shared mode (SPEC-M7 §4): rootsFn supplies the scan
+// roots (one per share, or the legacy root) and resolveFn maps virtual
+// paths ("/shareName/sub") to absolute paths. Both are consulted
+// dynamically, so share updates apply without rebuilding the handler.
+func (h *Handler) SetShares(rootsFn func() []ScanRoot, resolveFn func(rel string) (string, error)) {
+	h.scanner.SetRootsFn(rootsFn, resolveFn)
+	h.resolveFn = resolveFn
+}
+
+// resolve maps a client virtual path to an absolute filesystem path.
+func (h *Handler) resolve(rel string) (string, error) {
+	if h.resolveFn != nil {
+		return h.resolveFn(rel)
+	}
+	return files.Resolve(h.root, rel)
+}
 
 // StartBackgroundScan launches an incremental scan in a goroutine; intended
 // to be called once at server startup. The gallery API stays usable while it
@@ -199,7 +217,7 @@ func (h *Handler) GalleryScan(w http.ResponseWriter, r *http.Request) {
 // absolute path inside root using the shared files.Resolve rules.
 func (h *Handler) resolveParam(r *http.Request) (abs, rel string, err error) {
 	rel = "/" + strings.TrimPrefix(chi.URLParam(r, "*"), "/")
-	abs, err = files.Resolve(h.root, rel)
+	abs, err = h.resolve(rel)
 	return abs, rel, err
 }
 
