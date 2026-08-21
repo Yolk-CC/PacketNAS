@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/tab_gallery"
+        android:icon="@android:drawable/ic_menu_gallery"
+        android:title="@string/tab_gallery" />
+    <item
+        android:id="@+id/tab_files"
+        android:icon="@android:drawable/ic_menu_sort_by_size"
+        android:title="@string/tab_files" />
+    <item
+        android:id="@+id/tab_settings"
+        android:icon="@android:drawable/ic_menu_preferences"
+        android:title="@string/tab_settings" />
+</menu>

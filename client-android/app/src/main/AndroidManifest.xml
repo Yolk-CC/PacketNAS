@@ -30,10 +30,6 @@
             android:exported="false" />
 
         <activity
-            android:name=".ui.timeline.TimelineActivity"
-            android:exported="false" />
-
-        <activity
             android:name=".ui.viewer.ViewerActivity"
             android:exported="false"
             android:configChanges="orientation|screenSize|keyboardHidden" />
