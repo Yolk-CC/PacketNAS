@@ -3,14 +3,16 @@ package com.pocketnas.client.ui.timeline
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
+import android.view.LayoutInflater
 import android.view.ScaleGestureDetector
 import android.view.View
+import android.view.ViewGroup
 import android.widget.Button
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
-import androidx.activity.viewModels
-import androidx.appcompat.app.AppCompatActivity
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -27,38 +29,41 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-class TimelineActivity : AppCompatActivity() {
+/**
+ * 相册 tab（SPEC-M10 §1：由 TimelineActivity 重构为 Fragment，逻辑不变，
+ * 仅将 onCreate/findViewById 迁移到 onViewCreated）。
+ */
+class TimelineFragment : Fragment() {
 
     private val viewModel: TimelineViewModel by viewModels()
     private lateinit var adapter: TimelineAdapter
     private lateinit var layoutManager: GridLayoutManager
     private var spanCount = 3
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        if (App.of(this).apiClient == null) {
-            startActivity(Intent(this, ServerConnectActivity::class.java))
-            finish()
-            return
-        }
-        setContentView(R.layout.activity_timeline)
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?,
+    ): View = inflater.inflate(R.layout.fragment_timeline, container, false)
 
-        val app = App.of(this)
-        val title: TextView = findViewById(R.id.text_server_name)
-        val switch: Button = findViewById(R.id.btn_switch_server)
-        val empty: TextView = findViewById(R.id.text_empty)
-        val progress: ProgressBar = findViewById(R.id.progress)
-        val swipe: SwipeRefreshLayout = findViewById(R.id.swipe_refresh)
-        val recycler: RecyclerView = findViewById(R.id.recycler_timeline)
-        val scroller: FastScroller = findViewById(R.id.fast_scroller)
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        val app = App.of(requireContext())
+        val title: TextView = view.findViewById(R.id.text_server_name)
+        val switch: Button = view.findViewById(R.id.btn_switch_server)
+        val empty: TextView = view.findViewById(R.id.text_empty)
+        val progress: ProgressBar = view.findViewById(R.id.progress)
+        val swipe: SwipeRefreshLayout = view.findViewById(R.id.swipe_refresh)
+        val recycler: RecyclerView = view.findViewById(R.id.recycler_timeline)
+        val scroller: FastScroller = view.findViewById(R.id.fast_scroller)
 
-        adapter = TimelineAdapter(api = { App.of(this).apiClient }) { mediaIndex, _ ->
+        adapter = TimelineAdapter(api = { App.of(requireContext()).apiClient }) { mediaIndex, _ ->
             ViewerData.items = viewModel.state.value.items
-            startActivity(ViewerActivity.intent(this, mediaIndex))
+            startActivity(ViewerActivity.intent(requireContext(), mediaIndex))
         }
         spanCount = savedInstanceState?.getInt(KEY_SPAN) ?: 3
         adapter.spanCount = spanCount
-        layoutManager = GridLayoutManager(this, spanCount).apply {
+        layoutManager = GridLayoutManager(requireContext(), spanCount).apply {
             spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
                 override fun getSpanSize(position: Int): Int =
                     if (adapter.getItemViewType(position) == TimelineAdapter.TYPE_HEADER) spanCount else 1
@@ -88,21 +93,21 @@ class TimelineActivity : AppCompatActivity() {
             swipe.isRefreshing = false
         }
         switch.setOnClickListener {
-            startActivity(Intent(this, ServerConnectActivity::class.java))
+            startActivity(Intent(requireContext(), ServerConnectActivity::class.java))
         }
 
         attachPinchToZoom(recycler)
 
         title.text = app.server?.name.orEmpty()
-        lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.state.collect { s ->
                     progress.visibility = if (s.loading && s.rows.isEmpty()) View.VISIBLE else View.GONE
                     adapter.submitList(s.rows)
                     if (s.serverName.isNotEmpty()) title.text = s.serverName
                     if (s.unauthorized) {
-                        Toast.makeText(this@TimelineActivity, R.string.reauth_required, Toast.LENGTH_LONG).show()
-                        startActivity(Intent(this@TimelineActivity, ServerConnectActivity::class.java))
+                        Toast.makeText(requireContext(), R.string.reauth_required, Toast.LENGTH_LONG).show()
+                        startActivity(Intent(requireContext(), ServerConnectActivity::class.java))
                     }
                     when {
                         s.error != null -> {
@@ -136,7 +141,7 @@ class TimelineActivity : AppCompatActivity() {
     /** Pinch to switch grid between 3/4/5 columns (SPEC-M9 §3). */
     @SuppressLint("ClickableViewAccessibility")
     private fun attachPinchToZoom(recycler: RecyclerView) {
-        val detector = ScaleGestureDetector(this,
+        val detector = ScaleGestureDetector(requireContext(),
             object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
                 override fun onScaleEnd(d: ScaleGestureDetector) {
                     val newSpan = when {

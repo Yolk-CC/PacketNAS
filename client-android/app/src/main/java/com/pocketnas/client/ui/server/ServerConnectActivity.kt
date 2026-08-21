@@ -17,7 +17,7 @@ import com.pocketnas.client.data.api.ApiClient
 import com.pocketnas.client.data.api.ApiException
 import com.pocketnas.client.data.discovery.Discovery
 import com.pocketnas.client.data.model.ServerEntry
-import com.pocketnas.client.ui.timeline.TimelineActivity
+import com.pocketnas.client.MainActivity
 import kotlinx.coroutines.launch
 
 /**
@@ -136,7 +136,7 @@ class ServerConnectActivity : AppCompatActivity() {
     }
 
     private fun openTimeline() {
-        startActivity(Intent(this, TimelineActivity::class.java))
+        startActivity(Intent(this, MainActivity::class.java))
         finish()
     }
 

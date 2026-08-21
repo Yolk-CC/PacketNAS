@@ -53,6 +53,30 @@ data class ScanStatus(
 @Serializable
 data class DeleteRequest(val paths: List<String>)
 
+/** One entry of GET /api/files (internal/files/service.go FileInfo). */
+@Serializable
+data class FileInfo(
+    val name: String,
+    val path: String, // root-relative slash path, leading "/"
+    val size: Long = 0,
+    val modified: Long = 0, // epoch seconds
+    val isDir: Boolean = false,
+    val mimeType: String = "",
+) {
+    val isImage: Boolean get() = mimeType.startsWith("image/")
+    val isVideo: Boolean get() = mimeType.startsWith("video/")
+    val isMedia: Boolean get() = isImage || isVideo
+}
+
+@Serializable
+data class MkdirRequest(val dir: String, val name: String)
+
+@Serializable
+data class RenameRequest(val path: String, val newName: String)
+
+@Serializable
+data class UploadResponse(val uploaded: List<String> = emptyList())
+
 /** A saved server connection (SPEC-M9 §2). */
 data class ServerEntry(
     val id: String, // stable id, e.g. "host:port"
