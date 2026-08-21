@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">PocketNAS</string>
+
+    <!-- server connect -->
+    <string name="hint_host">服务器地址 host:port</string>
+    <string name="hint_password">密码（可选）</string>
+    <string name="btn_connect">连接</string>
+    <string name="btn_scan">扫描局域网</string>
+    <string name="saved_servers">已保存的服务器</string>
+    <string name="btn_use">使用</string>
+    <string name="btn_delete">删除</string>
+    <string name="discovered_entry">%1$s · %2$s:%3$d</string>
+    <string name="discover_none">未发现服务器</string>
+    <string name="error_host_required">请输入服务器地址</string>
+    <string name="error_api_level">服务器版本过低（需要 apiLevel ≥ 2）</string>
+    <string name="error_auth">密码错误</string>
+    <string name="error_connect">无法连接服务器</string>
+
+    <!-- timeline -->
+    <string name="empty_timeline">还没有媒体文件</string>
+    <string name="error_with_detail">%1$s</string>
+    <string name="reauth_required">登录已过期，请重新输入密码</string>
+    <string name="btn_switch_server">切换</string>
+    <string name="badge_live">动态</string>
+
+    <!-- viewer -->
+    <string name="confirm_delete">删除 %1$s？此操作不可恢复。</string>
+    <string name="delete_done">已删除</string>
+    <string name="download_done">已保存到相册</string>
+    <string name="error_delete">删除失败</string>
+    <string name="error_download">保存失败</string>
+    <string name="error_share">分享失败</string>
+    <string name="content_desc_back">返回</string>
+    <string name="content_desc_share">分享</string>
+    <string name="content_desc_download">下载</string>
+    <string name="content_desc_delete">删除</string>
+</resources>
