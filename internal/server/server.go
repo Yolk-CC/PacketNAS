@@ -166,7 +166,13 @@ func browseHandler() http.HandlerFunc {
 			return
 		}
 		if p == "" {
+			// Android 上从 Linux 根开始浏览对用户无意义（系统目录无权限且
+			// 难以找到共享存储）；默认直接落到共享存储根，用户仍可逐级
+			// 返回上级浏览其他位置（如外置 SD 卡 /storage/<uuid>）。
 			p = "/"
+			if info, err := os.Stat("/storage/emulated/0"); err == nil && info.IsDir() {
+				p = "/storage/emulated/0"
+			}
 		}
 		info, err := os.Stat(p)
 		if err != nil || !info.IsDir() {

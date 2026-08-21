@@ -134,12 +134,14 @@
   function closeModal() { modal.classList.add('hidden'); }
 
   function loadDir(path) {
-    state.browsePath = path;
-    browsePathEl.textContent = path || '/';
     var url = '/api/system/browse';
     if (path) url += '?path=' + encodeURIComponent(path);
     api(url).then(function (body) {
       var entries = (body && body.dirs) || (Array.isArray(body) ? body : []);
+      // 服务端可能重定向起始路径（如 Android 默认落到共享存储根），
+      // 以响应里的实际 path 为准
+      state.browsePath = (body && body.path) || path;
+      browsePathEl.textContent = state.browsePath || '/';
       renderDirs(entries);
     }).catch(function () {});
   }
