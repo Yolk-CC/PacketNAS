@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">PocketNAS</string>
+    <string name="app_name">PocketNAS Server</string>
     <string name="notification_channel">服务状态</string>
-    <string name="notification_text">PocketNAS 运行中 · 点击打开</string>
+    <string name="notification_text">PocketNAS Server 运行中 · 点击打开</string>
+    <string name="status_starting">服务启动中…</string>
+    <string name="status_running">● 运行中 · %1$s · 点击复制</string>
+    <string name="status_copied">已复制地址</string>
 </resources>

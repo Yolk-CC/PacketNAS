@@ -35,6 +35,7 @@ func Start(root, password string, port int) string {
 		Addr:     "0.0.0.0",
 		Port:     port,
 		Password: password,
+		Name:     "PocketNAS", // SPEC-M8: fixed server name on Android
 	}
 	a, stop, err := server.StartAsync(cfg)
 	if err != nil {

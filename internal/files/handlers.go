@@ -14,13 +14,21 @@ import (
 // inject it via -ldflags "-X pocket-nas/internal/files.Version=vX.Y.Z".
 var Version = "0.1.0"
 
+// APILevel is the current API level reported by /api/system/info and the LAN
+// discovery reply, for client capability negotiation (SPEC-M8 §1).
+const APILevel = 2
+
 // Handler exposes Service over HTTP per the SPEC API contract.
 type Handler struct {
-	svc *Service
+	svc        *Service
+	serverName string // reported by /api/system/info (SPEC-M8)
 }
 
 // NewHandler creates a Handler for svc.
 func NewHandler(svc *Service) *Handler { return &Handler{svc: svc} }
+
+// SetServerName sets the server name reported by /api/system/info.
+func (h *Handler) SetServerName(name string) { h.serverName = name }
 
 type errorBody struct {
 	Error struct {
@@ -212,10 +220,12 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) SystemInfo(w http.ResponseWriter, r *http.Request) {
 	free, total := diskStat(h.svc.Root())
 	writeJSON(w, http.StatusOK, map[string]any{
-		"version":   Version,
-		"root":      h.svc.Root(),
-		"diskFree":  free,
-		"diskTotal": total,
-		"goVersion": runtime.Version(),
+		"version":    Version,
+		"root":       h.svc.Root(),
+		"diskFree":   free,
+		"diskTotal":  total,
+		"goVersion":  runtime.Version(),
+		"serverName": h.serverName,
+		"apiLevel":   APILevel,
 	})
 }
