@@ -75,10 +75,10 @@ class ViewerActivity : AppCompatActivity() {
     private fun current(): MediaItem? = items.getOrNull(pager.currentItem)
 
     private fun updateChrome(item: MediaItem?) {
-        fileName.text = item?.name.orEmpty()
+        fileName.text = item?.name ?: ""
         takenTime.text = item?.let {
-            DateFormat.format("yyyy-MM-dd HH:mm", Date(it.takenTime * 1000))
-        }.orEmpty()
+            DateFormat.format("yyyy-MM-dd HH:mm", Date(it.takenTime * 1000)).toString()
+        } ?: ""
     }
 
     /** Immersive mode: tap toggles system bars + chrome (SPEC-M9 §4). */
