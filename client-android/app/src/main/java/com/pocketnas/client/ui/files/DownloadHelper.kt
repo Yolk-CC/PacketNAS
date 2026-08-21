@@ -33,7 +33,7 @@ object DownloadHelper {
             }
         }
 
-    private fun downloadViaMediaStore(
+    private suspend fun downloadViaMediaStore(
         context: Context,
         api: ApiClient,
         path: String,

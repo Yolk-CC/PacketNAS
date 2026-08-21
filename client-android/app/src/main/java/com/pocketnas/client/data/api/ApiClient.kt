@@ -129,7 +129,7 @@ class ApiClient(
         return json.decodeFromString(UploadResponse.serializer(), resp)
     }
 
-    override suspend fun downloadTo(path: String, zip: Boolean, out: OutputStream) =
+    override suspend fun downloadTo(path: String, zip: Boolean, out: OutputStream) {
         withContext(Dispatchers.IO) {
             val builder = base.toHttpUrl().newBuilder().addPathSegment("api").addPathSegment("download")
             path.split('/').filter { it.isNotEmpty() }.forEach { builder.addPathSegment(it) }
@@ -145,6 +145,7 @@ class ApiClient(
                     ?: throw ApiException(resp.code, "empty body")
             }
         }
+    }
 
     private suspend inline fun <reified T> get(path: String): T {
         val resp = execute(Request.Builder().url(base + path).get().build())
