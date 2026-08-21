@@ -18,7 +18,7 @@ class PathStack(initial: String = "/") {
 
     /** 进入子目录。 */
     fun push(name: String) {
-        val clean = name.trim('/')
+        val clean = name.trim().trim('/')
         require(clean.isNotBlank() && clean != "." && clean != "..") { "invalid dir name: $name" }
         segments.add(clean)
     }
