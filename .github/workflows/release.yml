@@ -66,7 +66,11 @@ jobs:
         run: |
           gradle wrapper --gradle-version 8.9 --no-daemon
           ./gradlew assembleDebug --no-daemon
+      - name: Rename APK artifact
+        run: |
+          mv android/app/build/outputs/apk/debug/app-debug.apk \
+            android/app/build/outputs/apk/debug/pocketnas-server-debug.apk
       - name: Upload APK to release
         uses: softprops/action-gh-release@v2
         with:
-          files: android/app/build/outputs/apk/debug/app-debug.apk
+          files: android/app/build/outputs/apk/debug/pocketnas-server-debug.apk

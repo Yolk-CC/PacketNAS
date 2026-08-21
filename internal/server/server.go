@@ -207,6 +207,7 @@ func NewRouter(cfg config.Config, svc *files.Service) http.Handler {
 // tests (or for pure file serving) never touch the storage root.
 func newRouter(cfg config.Config, svc *files.Service) (http.Handler, func()) {
 	h := files.NewHandler(svc)
+	h.SetServerName(cfg.Name)
 	tokens := newTokenStore()
 
 	// M7: load configured shares; failure disables shared mode (legacy
@@ -376,6 +377,13 @@ func startServer(cfg config.Config) (addr string, srv *http.Server, errCh chan e
 	}
 
 	srv = &http.Server{Handler: handler}
+	// LAN discovery replies with the actual bound port (SPEC-M8 §1). Failure
+	// only disables discovery; shutdown of srv closes the listener.
+	if ta, ok := listener.Addr().(*net.TCPAddr); ok {
+		if d := startDiscovery(cfg.Name, ta.Port); d != nil {
+			srv.RegisterOnShutdown(d.Close)
+		}
+	}
 	errCh = make(chan error, 1)
 	go func() {
 		errCh <- srv.Serve(listener)

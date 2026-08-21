@@ -21,7 +21,21 @@ Android（薄壳 APK）以及 Docker 中。
   `<Root>/.pocketnas/settings.json`（`GET/PUT /api/settings/shares`，
   目录选择器由 `GET /api/system/browse` 支持）。
 - **鉴权**：可选密码登录（token 认证，`-password` 开启；不设置则免登录）。
-- **系统信息**：`/api/system/info` 返回版本、存储根、磁盘余量与 Go 版本。
+- **系统信息**：`/api/system/info` 返回版本、存储根、磁盘余量、Go 版本、
+  `serverName` 与 `apiLevel`。
+
+## 架构
+
+PocketNAS 拆分为 **pocketnas-server**（本仓库：Go 服务端 + Web 管理台 +
+Android 薄壳 `com.pocketnas.server`）与 **pocketnas-client**（独立 App，
+消费 server API）。
+
+- **局域网发现**：server 启动后在 UDP 45777 监听文本探测 `POCKETNAS_DISCOVER`，
+  回复 `POCKETNAS_HERE|<serverName>|<port>|<apiLevel>`，client 据此自动发现服务器。
+- **API level**：`/api/system/info` 的 `apiLevel` 字段（当前 = 2）用于 client
+  能力协商；server name 由 `-name` 配置（默认主机名，Android 端固定为 "PocketNAS"）。
+- 人脸识别在服务端实现，人脸数据以 sha256 为键可导出导入，模型为可替换 ONNX；
+  API 预留 `/api/faces` 命名空间（尚未实现）。
 
 ## 快速开始
 

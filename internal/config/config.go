@@ -15,6 +15,7 @@ type Config struct {
 	Addr     string // listen address, default "0.0.0.0"
 	Port     int    // default 8080; auto-increment if occupied (max +100)
 	Password string // optional; non-empty enables token auth
+	Name     string // server name reported by /api/system/info and LAN discovery
 }
 
 // Parse parses args (e.g. os.Args[1:]) into a Config and validates Root.
@@ -24,6 +25,8 @@ func Parse(args []string) (Config, error) {
 	addr := fs.String("addr", "0.0.0.0", "listen address")
 	port := fs.Int("port", 8080, "listen port")
 	password := fs.String("password", "", "optional password to enable auth")
+	hostname, _ := os.Hostname()
+	name := fs.String("name", hostname, "server name (system info + LAN discovery)")
 	if err := fs.Parse(args); err != nil {
 		return Config{}, err
 	}
@@ -32,6 +35,7 @@ func Parse(args []string) (Config, error) {
 		Addr:     *addr,
 		Port:     *port,
 		Password: *password,
+		Name:     *name,
 	}
 
 	if *root == "" {
