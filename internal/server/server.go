@@ -27,6 +27,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 
 	"pocket-nas/internal/config"
+	"pocket-nas/internal/faces"
 	"pocket-nas/internal/files"
 	"pocket-nas/internal/livephoto"
 	"pocket-nas/internal/media"
@@ -249,6 +250,11 @@ func newRouter(cfg config.Config, svc *files.Service) (http.Handler, func()) {
 		liveH     *livephoto.Handler
 		videoH    *transcode.Handler
 		mediaErr  error
+
+		facesOnce sync.Once
+		facesSvc  *faces.Service
+		facesErr  error
+		getFaces  func() (*faces.Service, error)
 	)
 	getMedia := func() (*media.Handler, error) {
 		mediaOnce.Do(func() {
@@ -265,10 +271,37 @@ func newRouter(cfg config.Config, svc *files.Service) (http.Handler, func()) {
 				videoH.SetResolver(resolveFn)
 			}
 			if mediaErr == nil {
+				// M11: face scan follows each completed gallery scan.
+				mediaH.Scanner().SetOnDone(func() {
+					if fs, err := getFaces(); err == nil {
+						fs.NotifyScanDone()
+					}
+				})
 				mediaH.StartBackgroundScan()
 			}
 		})
 		return mediaH, mediaErr
+	}
+	// getFaces lazily builds the faces service on top of the media index.
+	// Native-library/model failures degrade to available=false, never fatal.
+	getFaces = func() (*faces.Service, error) {
+		facesOnce.Do(func() {
+			if _, mediaErr := getMedia(); mediaErr != nil {
+				facesErr = mediaErr
+				return
+			}
+			src := &facesSource{mh: mediaH, svc: svc}
+			facesSvc, facesErr = faces.NewService(svc.Root(), src,
+				func() faces.Config {
+					f := settingsStore.Faces()
+					return faces.Config{Profile: f.Profile, DetModel: f.DetModel, RecModel: f.RecModel, LibPath: f.LibPath}
+				},
+				func(c faces.Config) error {
+					return settingsStore.SetFaces(settings.Faces{Profile: c.Profile, DetModel: c.DetModel, RecModel: c.RecModel, LibPath: c.LibPath})
+				},
+				cfg.OnnxLibPath)
+		})
+		return facesSvc, facesErr
 	}
 	withMedia := func(fn func(*media.Handler, http.ResponseWriter, *http.Request)) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
@@ -341,6 +374,30 @@ func newRouter(cfg config.Config, svc *files.Service) (http.Handler, func()) {
 			// M4: multi-resolution video streaming / transcoding.
 			r.Get("/video/status/*", withMedia(func(_ *media.Handler, w http.ResponseWriter, r *http.Request) { videoH.Status(w, r) }))
 			r.Get("/video/*", withMedia(func(_ *media.Handler, w http.ResponseWriter, r *http.Request) { videoH.Video(w, r) }))
+
+			// M11: face recognition. The service degrades gracefully when
+			// onnxruntime/models are missing (status stays reachable).
+			withFaces := func(fn func(*faces.Handler, http.ResponseWriter, *http.Request)) http.HandlerFunc {
+				return func(w http.ResponseWriter, r *http.Request) {
+					fs, err := getFaces()
+					if err != nil {
+						writeAuthError(w, http.StatusServiceUnavailable, "faces_unavailable", "faces unavailable: "+err.Error())
+						return
+					}
+					fn(faces.NewHandler(fs), w, r)
+				}
+			}
+			r.Get("/faces/status", withFaces((*faces.Handler).Status))
+			r.Post("/faces/models/download", withFaces((*faces.Handler).DownloadModels))
+			r.Put("/faces/models", withFaces((*faces.Handler).SetModels))
+			r.Post("/faces/scan", withFaces((*faces.Handler).Scan))
+			r.Get("/faces/persons", withFaces((*faces.Handler).Persons))
+			r.Get("/faces/persons/{id}/photos", withFaces((*faces.Handler).PersonPhotos))
+			r.Put("/faces/persons/{id}", withFaces((*faces.Handler).RenamePerson))
+			r.Post("/faces/persons/merge", withFaces((*faces.Handler).MergePersons))
+			r.Get("/faces/crop/{faceId}", withFaces((*faces.Handler).Crop))
+			r.Get("/faces/export", withFaces((*faces.Handler).Export))
+			r.Post("/faces/import", withFaces((*faces.Handler).Import))
 		})
 	})
 
@@ -359,6 +416,18 @@ func newRouter(cfg config.Config, svc *files.Service) (http.Handler, func()) {
 	}
 	return r, warmup
 }
+
+// facesSource adapts the media handler + files service to faces.Source.
+type facesSource struct {
+	mh  *media.Handler
+	svc *files.Service
+}
+
+func (f *facesSource) Images() ([]media.Media, error) { return f.mh.Store().ImageMedias() }
+func (f *facesSource) MediaByPath(path string) (*media.Media, error) {
+	return f.mh.Store().Get(path)
+}
+func (f *facesSource) Resolve(rel string) (string, error) { return f.svc.Resolve(rel) }
 
 // startServer binds the listener (port+1 retries) and serves in a
 // goroutine, returning the actual address, the server and an error channel

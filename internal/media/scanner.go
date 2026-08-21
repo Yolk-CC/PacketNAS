@@ -59,7 +59,12 @@ type Scanner struct {
 	resolveFn func(rel string) (string, error) // nil → files.Resolve(sc.root, rel)
 	scanning  atomic.Bool
 	progress  atomic.Int64 // items processed in the current/last scan
+	onDone    atomic.Value // func(), M11 hook fired after each completed scan
 }
+
+// SetOnDone registers a hook (e.g. the faces recognizer) invoked after
+// every scan that ran to completion (not cancelled).
+func (sc *Scanner) SetOnDone(fn func()) { sc.onDone.Store(fn) }
 
 // NewScanner creates a Scanner for root (should be files.ResolveRoot output).
 func NewScanner(store *Store, root string) *Scanner {
@@ -264,6 +269,9 @@ func (sc *Scanner) scan(ctx context.Context, mtimes map[string]int64, progress c
 	// and removed companions are reflected.
 	if perr := sc.pairIOSLivePhotos(ctx); perr != nil && err == nil {
 		err = perr
+	}
+	if v := sc.onDone.Load(); v != nil {
+		v.(func())()
 	}
 	return err
 }

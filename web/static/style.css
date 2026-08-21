@@ -556,3 +556,49 @@ body {
   gap: 0.6rem;
   margin-top: 0.9rem;
 }
+
+/* ---------- M11: 人物页与人脸设置 ---------- */
+.person-cell .person-label {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 0.35rem 0.5rem;
+  background: linear-gradient(transparent, rgba(30, 26, 22, 0.75));
+  color: #fff;
+  font-size: 0.85rem;
+  text-align: left;
+}
+.person-cell .person-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.person-cell .person-count { opacity: 0.85; font-size: 0.75rem; }
+.person-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0;
+  flex-wrap: wrap;
+}
+.person-header h2 { margin: 0; font-size: 1.1rem; }
+.person-header input[type="text"] {
+  padding: 0.35rem 0.6rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+}
+.faces-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0.7rem 0;
+  flex-wrap: wrap;
+}
+.faces-row select {
+  padding: 0.35rem 0.6rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: #fff;
+}

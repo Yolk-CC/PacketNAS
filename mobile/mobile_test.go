@@ -9,7 +9,7 @@ import (
 
 func TestStartStopLifecycle(t *testing.T) {
 	root := t.TempDir()
-	addr := Start(root, "", 0)
+	addr := Start(root, "", 0, "")
 	if addr == "" {
 		t.Fatal("Start returned empty address")
 	}
@@ -20,7 +20,7 @@ func TestStartStopLifecycle(t *testing.T) {
 	}
 
 	// Idempotent while running.
-	if again := Start(root, "", 0); again != addr {
+	if again := Start(root, "", 0, ""); again != addr {
 		t.Fatalf("second Start=%q, want %q", again, addr)
 	}
 	if Address() != addr {

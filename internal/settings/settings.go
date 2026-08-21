@@ -22,15 +22,25 @@ type Share struct {
 	Path string `json:"path"` // normalized absolute path (Abs + EvalSymlinks)
 }
 
+// Faces holds the M11 face-recognition settings.
+type Faces struct {
+	Profile  string `json:"profile,omitempty"`  // builtin profile (buffalo_l/buffalo_s/mobilefacenet)
+	DetModel string `json:"detModel,omitempty"` // .onnx file name override
+	RecModel string `json:"recModel,omitempty"`
+	LibPath  string `json:"libPath,omitempty"` // onnxruntime shared library path override
+}
+
 // Store holds the configured shares and persists them atomically.
 type Store struct {
 	mu     sync.RWMutex
 	file   string
 	shares []Share
+	faces  Faces
 }
 
 type fileFormat struct {
 	Shares []Share `json:"shares"`
+	Faces  Faces   `json:"faces,omitempty"`
 }
 
 // New returns an empty in-memory Store backed by <root>/.pocketnas/
@@ -55,6 +65,7 @@ func Load(root string) (*Store, error) {
 		return nil, fmt.Errorf("parse %s: %w", s.file, err)
 	}
 	s.shares = f.Shares
+	s.faces = f.Faces
 	return s, nil
 }
 
@@ -77,7 +88,7 @@ func (s *Store) SetShares(shares []Share) error {
 	if err != nil {
 		return err
 	}
-	data, err := json.MarshalIndent(fileFormat{Shares: norm}, "", "  ")
+	data, err := json.MarshalIndent(fileFormat{Shares: norm, Faces: s.currentFaces()}, "", "  ")
 	if err != nil {
 		return err
 	}
@@ -94,6 +105,40 @@ func (s *Store) SetShares(shares []Share) error {
 	}
 	s.mu.Lock()
 	s.shares = norm
+	s.mu.Unlock()
+	return nil
+}
+
+func (s *Store) currentFaces() Faces {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.faces
+}
+
+// Faces returns the face-recognition settings.
+func (s *Store) Faces() Faces {
+	return s.currentFaces()
+}
+
+// SetFaces validates and persists the faces settings (keeping shares).
+func (s *Store) SetFaces(f Faces) error {
+	data, err := json.MarshalIndent(fileFormat{Shares: s.Shares(), Faces: f}, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(s.file), 0o755); err != nil {
+		return err
+	}
+	tmp := s.file + ".tmp"
+	if err := os.WriteFile(tmp, data, 0o600); err != nil {
+		return err
+	}
+	if err := os.Rename(tmp, s.file); err != nil {
+		os.Remove(tmp)
+		return err
+	}
+	s.mu.Lock()
+	s.faces = f
 	s.mu.Unlock()
 	return nil
 }

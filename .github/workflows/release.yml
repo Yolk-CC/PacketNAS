@@ -32,6 +32,18 @@ jobs:
             go build -trimpath \
               -ldflags "-s -w -X main.Version=$VERSION -X pocket-nas/internal/files.Version=$VERSION" \
               -o dist/${{ matrix.out }} ./cmd/pocket-nas
+      # M11: optional real-model smoke on linux/amd64. Model/runtime downloads
+      # are cached; failures never block the release.
+      - name: Cache M11 models (onnxruntime + buffalo_s + test photos)
+        if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pocketnas-m11
+          key: m11-buffalo_s-ort-1.17.3
+      - name: M11 faces smoke (optional)
+        if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
+        continue-on-error: true
+        run: M11_CACHE=$HOME/.cache/pocketnas-m11 bash scripts/smoke-m11.sh
       - name: Upload release asset
         uses: softprops/action-gh-release@v2
         with:
@@ -61,6 +73,17 @@ jobs:
           mkdir -p android/app/libs
           gomobile bind -target=android/arm64 -androidapi 26 \
             -o android/app/libs/pocketnas.aar ./mobile
+      # M11: bundle onnxruntime-mobile so Android gets face recognition.
+      # Optional per SPEC-M11 §5: failure leaves faces_unavailable degrade.
+      - name: Bundle onnxruntime-mobile .so (optional)
+        continue-on-error: true
+        run: |
+          mkdir -p android/app/src/main/jniLibs/arm64-v8a /tmp/ort-aar
+          curl -fsSL -o /tmp/ort.aar \
+            https://repo1.maven.org/maven2/com/microsoft/onnxruntime/onnxruntime-android/1.17.3/onnxruntime-android-1.17.3.aar
+          unzip -o /tmp/ort.aar jni/arm64-v8a/libonnxruntime.so -d /tmp/ort-aar
+          cp /tmp/ort-aar/jni/arm64-v8a/libonnxruntime.so \
+            android/app/src/main/jniLibs/arm64-v8a/
       - name: Assemble APK
         working-directory: android
         run: |
