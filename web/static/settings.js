@@ -183,4 +183,119 @@
     if (e && e.message === 'unauthorized') return; // api() 已处理跳转
     loadShares();
   });
+
+  /* ---------- M11: 人脸识别卡片 ---------- */
+  var facesStatus = $('faces-status'), facesModels = $('faces-models');
+  var facesProgress = $('faces-progress'), facesDlProg = $('faces-download-progress');
+  var facesPollTimer = null;
+
+  function fmtBytes(n) {
+    if (n >= (1 << 20)) return (n / (1 << 20)).toFixed(1) + ' MB';
+    if (n >= 1024) return (n / 1024).toFixed(1) + ' KB';
+    return n + ' B';
+  }
+
+  function renderFaces(st) {
+    if (st.available) {
+      facesStatus.textContent = '可用 · 运行库已加载 · 已识别 ' + (st.facesTotal || 0) + ' 张人脸 / ' +
+        (st.persons || 0) + ' 个人物';
+      facesStatus.className = 'muted';
+    } else {
+      facesStatus.textContent = '不可用：' + (st.reason || '未知原因');
+      facesStatus.className = 'muted error-text';
+    }
+    var m = st.model || {};
+    facesModels.textContent = '当前模型：' + (m.profile || '-') + '（检测 ' + (m.det || '-') +
+      '，特征 ' + (m.rec || '-') + '，' + (m.dims || 0) + ' 维）· 目录内模型：' +
+      ((st.models || []).join('、') || '无');
+    if (st.profiles && st.model && st.model.profile && $('faces-profile').value !== st.model.profile) {
+      $('faces-profile').value = st.model.profile;
+    }
+    var q = st.queue || {};
+    facesProgress.textContent = q.scanning || q.pending > 0
+      ? ('识别中… 已完成 ' + (q.done || 0) + '，待处理 ' + (q.pending || 0))
+      : ((st.facesTotal || 0) > 0 ? '空闲' : '');
+    var d = st.download || {};
+    if (d.downloading) {
+      facesDlProg.classList.remove('hidden');
+      facesDlProg.textContent = '下载中：' + (d.file || '') + ' ' + fmtBytes(d.bytes || 0) +
+        (d.total > 0 ? ' / ' + fmtBytes(d.total) : '');
+    } else if (d.error) {
+      facesDlProg.classList.remove('hidden');
+      facesDlProg.textContent = '下载失败：' + d.error;
+    } else {
+      facesDlProg.classList.add('hidden');
+    }
+  }
+
+  function pollFaces() {
+    api('/api/faces/status').then(renderFaces).catch(function () {
+      facesStatus.textContent = '状态查询失败';
+    });
+  }
+
+  function startFacesPoll() {
+    if (!facesPollTimer) facesPollTimer = setInterval(pollFaces, 2000);
+  }
+
+  $('btn-faces-download').addEventListener('click', function () {
+    api('/api/faces/models/download', { method: 'POST' }).then(function () {
+      toast('开始下载，请稍候…');
+      startFacesPoll();
+    }).catch(function (e) { toast('下载失败：' + e.message, true); });
+  });
+
+  $('btn-faces-apply').addEventListener('click', function () {
+    api('/api/faces/models', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ profile: $('faces-profile').value })
+    }).then(function (st) {
+      renderFaces(st);
+      toast(st.available ? '模型已应用' : '模型未就绪：' + (st.reason || ''));
+    }).catch(function (e) { toast('应用失败：' + e.message, true); });
+  });
+
+  $('btn-faces-scan').addEventListener('click', function () {
+    api('/api/faces/scan', { method: 'POST' }).then(function () {
+      toast('识别已开始');
+      startFacesPoll();
+      pollFaces();
+    }).catch(function (e) { toast('无法开始识别：' + e.message, true); });
+  });
+
+  $('btn-faces-export').addEventListener('click', function () {
+    fetch('/api/faces/export', { headers: { 'X-Auth-Token': getToken() } })
+      .then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        return res.blob();
+      })
+      .then(function (blob) {
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'faces-export.json.gz';
+        a.click();
+        URL.revokeObjectURL(a.href);
+      })
+      .catch(function (e) { toast('导出失败：' + e.message, true); });
+  });
+
+  $('btn-faces-import').addEventListener('click', function () {
+    $('faces-import-file').click();
+  });
+  $('faces-import-file').addEventListener('change', function (ev) {
+    var f = ev.target.files[0];
+    if (!f) return;
+    api('/api/faces/import', { method: 'POST', headers: { 'Content-Type': 'application/gzip' }, body: f })
+      .then(function (res) {
+        toast('导入完成：人物 ' + (res.persons || 0) + '，人脸 ' + (res.faces || 0) +
+          '，跳过重复 ' + (res.skipped || 0));
+        pollFaces();
+      })
+      .catch(function (e) { toast('导入失败：' + e.message, true); });
+    ev.target.value = '';
+  });
+
+  pollFaces();
+  startFacesPoll();
 })();

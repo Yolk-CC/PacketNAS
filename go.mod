@@ -4,10 +4,12 @@ go 1.23.4
 
 require (
 	github.com/disintegration/imaging v1.6.2
+	github.com/ebitengine/purego v0.8.4
 	github.com/go-chi/chi/v5 v5.3.1
 	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd
 	golang.org/x/image v0.24.0
 	golang.org/x/mobile v0.0.0-20241108191957-fa514ef75a0f
+	golang.org/x/sys v0.27.0
 	modernc.org/sqlite v1.34.5
 )
 
@@ -19,7 +21,6 @@ require (
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	golang.org/x/mod v0.22.0 // indirect
 	golang.org/x/sync v0.9.0 // indirect
-	golang.org/x/sys v0.27.0 // indirect
 	golang.org/x/tools v0.27.0 // indirect
 	modernc.org/libc v1.55.3 // indirect
 	modernc.org/mathutil v1.6.0 // indirect

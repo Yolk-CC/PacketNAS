@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import mobile.Mobile
+import java.io.File
 
 /**
  * Foreground service hosting the Go core (via the gomobile binding).
@@ -55,7 +56,11 @@ class NasService : Service() {
         // the main thread.
         Thread {
             // gomobile maps Go int → Java long.
-            val addr = Mobile.start(root, password, port.toLong())
+            // M11: pass the onnxruntime-mobile native lib if packaged; "" →
+            // face recognition degrades to faces_unavailable.
+            val onnxLib = File(applicationInfo.nativeLibraryDir, "libonnxruntime.so")
+                .takeIf { it.exists() }?.absolutePath ?: ""
+            val addr = Mobile.start(root, password, port.toLong(), onnxLib)
             if (addr.isNullOrEmpty()) {
                 Log.e(TAG, "Go core failed to start")
                 stopSelf()

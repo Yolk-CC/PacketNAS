@@ -14,6 +14,7 @@
     <nav class="tabs">
       <a class="tab" href="index.html">文件</a>
       <a class="tab" href="gallery.html">相册</a>
+      <a class="tab" href="people.html">人物</a>
       <a class="tab active" href="settings.html">设置</a>
     </nav>
     <div class="actions">
@@ -43,6 +44,37 @@
       <div class="settings-actions">
         <button id="btn-save" class="btn primary">保存</button>
         <span id="save-status" class="muted"></span>
+      </div>
+    </section>
+
+    <!-- M11: 人脸识别 -->
+    <section class="settings-card" id="faces-card">
+      <h2>人脸识别</h2>
+      <p class="muted" id="faces-status">状态加载中…</p>
+
+      <div class="faces-row">
+        <label for="faces-profile">模型档位</label>
+        <select id="faces-profile">
+          <option value="buffalo_s">buffalo_s（均衡）</option>
+          <option value="buffalo_l">buffalo_l（高精度）</option>
+          <option value="mobilefacenet">mobilefacenet（轻量）</option>
+        </select>
+        <button id="btn-faces-download" class="btn">下载模型与运行库</button>
+        <button id="btn-faces-apply" class="btn primary">应用</button>
+      </div>
+      <p class="muted" id="faces-models"></p>
+      <p class="muted hidden" id="faces-download-progress"></p>
+
+      <div class="faces-row">
+        <button id="btn-faces-scan" class="btn primary">开始识别</button>
+        <span id="faces-progress" class="muted"></span>
+      </div>
+
+      <div class="faces-row">
+        <button id="btn-faces-export" class="btn">导出数据</button>
+        <button id="btn-faces-import" class="btn">导入数据…</button>
+        <a class="btn subtle" href="people.html">查看人物 →</a>
+        <input type="file" id="faces-import-file" accept=".gz,.json" hidden>
       </div>
     </section>
   </main>
