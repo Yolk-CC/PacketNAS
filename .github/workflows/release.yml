@@ -74,3 +74,31 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: android/app/build/outputs/apk/debug/pocketnas-server-debug.apk
+
+  client-apk:
+    name: Build & upload client APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Assemble client APK
+        working-directory: client-android
+        run: |
+          gradle wrapper --gradle-version 8.9 --no-daemon
+          ./gradlew assembleDebug --no-daemon
+      - name: Run client unit tests
+        working-directory: client-android
+        run: ./gradlew testDebugUnitTest --no-daemon
+      - name: Rename APK artifact
+        run: |
+          mv client-android/app/build/outputs/apk/debug/app-debug.apk \
+            client-android/app/build/outputs/apk/debug/pocketnas-client-debug.apk
+      - name: Upload client APK to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: client-android/app/build/outputs/apk/debug/pocketnas-client-debug.apk
