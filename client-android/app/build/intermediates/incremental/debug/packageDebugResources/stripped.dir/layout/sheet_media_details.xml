@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@color/card"
+    android:paddingStart="24dp"
+    android:paddingEnd="24dp"
+    android:paddingTop="16dp"
+    android:paddingBottom="32dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/details_title"
+        android:textColor="@color/text_primary"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="12dp" />
+
+    <!-- Each row: label + value, filled in ViewerActivity -->
+    <TextView style="@style/Widget.PocketNAS.DetailLabel" android:text="@string/label_file_name" />
+    <TextView style="@style/Widget.PocketNAS.DetailValue" android:id="@+id/detail_name" />
+
+    <TextView style="@style/Widget.PocketNAS.DetailLabel" android:text="@string/label_taken_time" />
+    <TextView style="@style/Widget.PocketNAS.DetailValue" android:id="@+id/detail_time" />
+
+    <TextView style="@style/Widget.PocketNAS.DetailLabel" android:text="@string/label_resolution" />
+    <TextView style="@style/Widget.PocketNAS.DetailValue" android:id="@+id/detail_resolution" />
+
+    <TextView style="@style/Widget.PocketNAS.DetailLabel" android:text="@string/label_file_size" />
+    <TextView style="@style/Widget.PocketNAS.DetailValue" android:id="@+id/detail_size" />
+
+    <TextView style="@style/Widget.PocketNAS.DetailLabel" android:text="@string/label_mime" />
+    <TextView style="@style/Widget.PocketNAS.DetailValue" android:id="@+id/detail_mime" />
+
+    <TextView style="@style/Widget.PocketNAS.DetailLabel" android:text="@string/label_path" />
+    <TextView style="@style/Widget.PocketNAS.DetailValue" android:id="@+id/detail_path" />
+</LinearLayout>

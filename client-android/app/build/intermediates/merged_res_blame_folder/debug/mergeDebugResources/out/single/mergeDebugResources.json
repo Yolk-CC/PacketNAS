@@ -1,0 +1,98 @@
+[
+    {
+        "merged": "com.pocketnas.client.app-debug-43:/menu_bottom_nav.xml.flat",
+        "source": "com.pocketnas.client.app-main-45:/menu/bottom_nav.xml"
+    },
+    {
+        "merged": "com.pocketnas.client.app-debug-43:/drawable_bg_thumb_placeholder.xml.flat",
+        "source": "com.pocketnas.client.app-main-45:/drawable/bg_thumb_placeholder.xml"
+    },
+    {
+        "merged": "com.pocketnas.client.app-debug-43:/xml_file_paths.xml.flat",
+        "source": "com.pocketnas.client.app-main-45:/xml/file_paths.xml"
+    },
+    {
+        "merged": "com.pocketnas.client.app-debug-43:/color_nav_item_tint.xml.flat",
+        "source": "com.pocketnas.client.app-main-45:/color/nav_item_tint.xml"
+    },
+    {
+        "merged": "com.pocketnas.client.app-debug-43:/layout_item_person.xml.flat",
+        "source": "com.pocketnas.client.app-main-45:/layout/item_person.xml"
+    },
+    {
+        "merged": "com.pocketnas.client.app-debug-43:/layout_fragment_people.xml.flat",
+        "source": "com.pocketnas.client.app-main-45:/layout/fragment_people.xml"
+    },
+    {
+        "merged": "com.pocketnas.client.app-debug-43:/layout_item_media.xml.flat",
+        "source": "com.pocketnas.client.app-main-45:/layout/item_media.xml"
+    },
+    {
+        "merged": "com.pocketnas.client.app-debug-43:/layout_fragment_profile.xml.flat",
+        "source": "com.pocketnas.client.app-main-45:/layout/fragment_profile.xml"
+    },
+    {
+        "merged": "com.pocketnas.client.app-debug-43:/layout_item_date_header.xml.flat",
+        "source": "com.pocketnas.client.app-main-45:/layout/item_date_header.xml"
+    },
+    {
+        "merged": "com.pocketnas.client.app-debug-43:/drawable_bg_badge.xml.flat",
+        "source": "com.pocketnas.client.app-main-45:/drawable/bg_badge.xml"
+    },
+    {
+        "merged": "com.pocketnas.client.app-debug-43:/layout_item_viewer_page.xml.flat",
+        "source": "com.pocketnas.client.app-main-45:/layout/item_viewer_page.xml"
+    },
+    {
+        "merged": "com.pocketnas.client.app-debug-43:/layout_item_file.xml.flat",
+        "source": "com.pocketnas.client.app-main-45:/layout/item_file.xml"
+    },
+    {
+        "merged": "com.pocketnas.client.app-debug-43:/layout_sheet_media_details.xml.flat",
+        "source": "com.pocketnas.client.app-main-45:/layout/sheet_media_details.xml"
+    },
+    {
+        "merged": "com.pocketnas.client.app-debug-43:/drawable_ic_empty.xml.flat",
+        "source": "com.pocketnas.client.app-main-45:/drawable/ic_empty.xml"
+    },
+    {
+        "merged": "com.pocketnas.client.app-debug-43:/drawable_bg_divider.xml.flat",
+        "source": "com.pocketnas.client.app-main-45:/drawable/bg_divider.xml"
+    },
+    {
+        "merged": "com.pocketnas.client.app-debug-43:/layout_activity_server_connect.xml.flat",
+        "source": "com.pocketnas.client.app-main-45:/layout/activity_server_connect.xml"
+    },
+    {
+        "merged": "com.pocketnas.client.app-debug-43:/drawable_ic_info.xml.flat",
+        "source": "com.pocketnas.client.app-main-45:/drawable/ic_info.xml"
+    },
+    {
+        "merged": "com.pocketnas.client.app-debug-43:/layout_activity_main.xml.flat",
+        "source": "com.pocketnas.client.app-main-45:/layout/activity_main.xml"
+    },
+    {
+        "merged": "com.pocketnas.client.app-debug-43:/layout_item_server.xml.flat",
+        "source": "com.pocketnas.client.app-main-45:/layout/item_server.xml"
+    },
+    {
+        "merged": "com.pocketnas.client.app-debug-43:/drawable_ic_profile.xml.flat",
+        "source": "com.pocketnas.client.app-main-45:/drawable/ic_profile.xml"
+    },
+    {
+        "merged": "com.pocketnas.client.app-debug-43:/layout_fragment_timeline.xml.flat",
+        "source": "com.pocketnas.client.app-main-45:/layout/fragment_timeline.xml"
+    },
+    {
+        "merged": "com.pocketnas.client.app-debug-43:/layout_fragment_files.xml.flat",
+        "source": "com.pocketnas.client.app-main-45:/layout/fragment_files.xml"
+    },
+    {
+        "merged": "com.pocketnas.client.app-debug-43:/layout_activity_viewer.xml.flat",
+        "source": "com.pocketnas.client.app-main-45:/layout/activity_viewer.xml"
+    },
+    {
+        "merged": "com.pocketnas.client.app-debug-43:/layout_activity_person_photos.xml.flat",
+        "source": "com.pocketnas.client.app-main-45:/layout/activity_person_photos.xml"
+    }
+]

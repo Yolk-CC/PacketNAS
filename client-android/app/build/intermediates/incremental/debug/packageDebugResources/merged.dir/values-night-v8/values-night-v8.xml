@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="background">#211D1A</color>
+    <color name="card">#2C2724</color>
+    <color name="divider">#3E3833</color>
+    <color name="primary">#D08C55</color>
+    <color name="text_primary">#EDE7E0</color>
+    <color name="text_secondary">#A39A91</color>
+    <color name="thumb_placeholder">#FF3E3833</color>
+</resources>
