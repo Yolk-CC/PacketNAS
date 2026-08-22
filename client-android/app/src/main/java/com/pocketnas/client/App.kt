@@ -43,6 +43,11 @@ class App : Application(), ImageLoaderFactory {
         server = entry
     }
 
+    /** Drops the active ApiClient so MainActivity routes back to the connect page. */
+    fun disconnect() {
+        apiClient = null
+    }
+
     private fun newApiClient(entry: ServerEntry): ApiClient =
         ApiClient(entry.baseUrl, tokenProvider = {
             serverStore.current()?.token.orEmpty()

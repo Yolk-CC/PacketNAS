@@ -40,8 +40,31 @@
     <string name="tab_gallery">相册</string>
     <string name="tab_people">人物</string>
     <string name="tab_files">文件</string>
-    <string name="tab_settings">设置</string>
-    <string name="settings_placeholder">设置功能即将推出</string>
+    <string name="tab_profile">我的</string>
+
+    <!-- profile tab (SPEC-M14) -->
+    <string name="profile_current_server">当前服务器</string>
+    <string name="profile_server_address">%1$s:%2$d</string>
+    <string name="profile_status_checking">检查连接中…</string>
+    <string name="profile_status_connected">已连接</string>
+    <string name="profile_status_failed">连接失败</string>
+    <string name="btn_add_server">添加服务器</string>
+    <string name="btn_disconnect">断开当前服务器</string>
+    <string name="confirm_disconnect">断开与当前服务器的连接？</string>
+    <string name="confirm_remove_server">删除已保存的服务器「%1$s」？</string>
+    <string name="error_switch_server">无法连接该服务器</string>
+    <string name="about_section">关于</string>
+    <string name="about_version">版本 %1$s</string>
+
+    <!-- viewer details (SPEC-M14) -->
+    <string name="details_title">详情</string>
+    <string name="label_file_name">文件名</string>
+    <string name="label_taken_time">拍摄时间</string>
+    <string name="label_resolution">分辨率</string>
+    <string name="label_file_size">文件大小</string>
+    <string name="label_mime">MIME 类型</string>
+    <string name="label_path">服务端路径</string>
+    <string name="content_desc_info">详情</string>
 
     <!-- files tab -->
     <string name="files_root">共享</string>

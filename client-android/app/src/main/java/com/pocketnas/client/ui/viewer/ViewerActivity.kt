@@ -15,6 +15,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.viewpager2.widget.ViewPager2
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.pocketnas.client.App
 import com.pocketnas.client.R
 import com.pocketnas.client.data.model.MediaItem
@@ -67,6 +68,7 @@ class ViewerActivity : AppCompatActivity() {
         updateChrome(items.getOrNull(start))
 
         findViewById<ImageButton>(R.id.btn_back).setOnClickListener { finish() }
+        findViewById<ImageButton>(R.id.btn_info).setOnClickListener { current()?.let(::showDetails) }
         findViewById<ImageButton>(R.id.btn_share).setOnClickListener { current()?.let(::share) }
         findViewById<ImageButton>(R.id.btn_download).setOnClickListener { current()?.let(::download) }
         findViewById<ImageButton>(R.id.btn_delete).setOnClickListener { current()?.let(::confirmDelete) }
@@ -92,6 +94,25 @@ class ViewerActivity : AppCompatActivity() {
         } else {
             controller.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
         }
+    }
+
+    /** 详情面板（SPEC-M14 §2）：BottomSheet 展示现有元数据，缺字段显示「-」。 */
+    private fun showDetails(item: MediaItem) {
+        val dialog = BottomSheetDialog(this)
+        val sheet = layoutInflater.inflate(R.layout.sheet_media_details, null)
+        sheet.findViewById<TextView>(R.id.detail_name).text = MediaDetails.name(item)
+        sheet.findViewById<TextView>(R.id.detail_time).text =
+            if (item.takenTime > 0) {
+                DateFormat.format("yyyy-MM-dd HH:mm:ss", Date(item.takenTime * 1000)).toString()
+            } else {
+                MediaDetails.PLACEHOLDER
+            }
+        sheet.findViewById<TextView>(R.id.detail_resolution).text = MediaDetails.resolution(item)
+        sheet.findViewById<TextView>(R.id.detail_size).text = MediaDetails.fileSize(item)
+        sheet.findViewById<TextView>(R.id.detail_mime).text = MediaDetails.mimeType(item)
+        sheet.findViewById<TextView>(R.id.detail_path).text = MediaDetails.path(item)
+        dialog.setContentView(sheet)
+        dialog.show()
     }
 
     private fun share(item: MediaItem) = lifecycleScope.launch {

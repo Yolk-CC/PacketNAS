@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Design tokens (M14, aligned with web M13). Light values here,
+         dark overrides in values-night/colors.xml. -->
+    <color name="background">#FAF8F5</color>
+    <color name="card">#FFFFFF</color>
+    <color name="primary">#B26F3F</color>
+    <color name="text_primary">#2B2622</color>
+    <color name="text_secondary">#8A817A</color>
+    <color name="divider">#E8E2DA</color>
+
+    <color name="text_on_primary">#FFFFFF</color>
+    <color name="thumb_placeholder">#FFE0E0DC</color>
+
+    <!-- viewer / overlays (same in both modes) -->
+    <color name="viewer_black">#000000</color>
+    <color name="viewer_overlay">#66000000</color>
+    <color name="text_on_dark">#FFFFFF</color>
+    <color name="text_on_dark_secondary">#CCCCCC</color>
+    <color name="badge_bg">#99000000</color>
+    <color name="selection_overlay">#66FFC107</color>
+</resources>
