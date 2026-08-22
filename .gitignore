@@ -1,2 +1,8 @@
 bin/
 *.test
+dist/
+*.aar
+*.class
+.gradle/
+local.properties
+.pocketnas/
