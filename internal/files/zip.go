@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -19,8 +20,11 @@ func (s *Service) StreamZip(w http.ResponseWriter, abs, dirName string) {
 	zw := zip.NewWriter(w)
 	defer zw.Close()
 
-	_ = filepath.WalkDir(abs, func(p string, d fs.DirEntry, err error) error {
+	// The response has already started once we stream, so callback errors
+	// can only be logged, not turned into a status code.
+	if err := filepath.WalkDir(abs, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
+			log.Printf("zip: walk %s: %v", p, err)
 			return err
 		}
 		rel, err := filepath.Rel(abs, p)
@@ -59,8 +63,15 @@ func (s *Service) StreamZip(w http.ResponseWriter, abs, dirName string) {
 		if err != nil {
 			return err
 		}
-		defer f.Close()
-		_, err = io.Copy(entry, f)
-		return err
-	})
+		// Explicit Close right after the copy: deferring here would keep
+		// every file descriptor open until the whole archive is done.
+		_, copyErr := io.Copy(entry, f)
+		closeErr := f.Close()
+		if copyErr != nil {
+			return copyErr
+		}
+		return closeErr
+	}); err != nil {
+		log.Printf("zip: stream %s: %v", abs, err)
+	}
 }
