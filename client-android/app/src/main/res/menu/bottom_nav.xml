@@ -13,7 +13,7 @@
         android:icon="@android:drawable/ic_menu_sort_by_size"
         android:title="@string/tab_files" />
     <item
-        android:id="@+id/tab_settings"
-        android:icon="@android:drawable/ic_menu_preferences"
-        android:title="@string/tab_settings" />
+        android:id="@+id/tab_profile"
+        android:icon="@drawable/ic_profile"
+        android:title="@string/tab_profile" />
 </menu>

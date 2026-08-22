@@ -2,7 +2,7 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#000000">
+    android:background="@color/viewer_black">
 
     <androidx.viewpager2.widget.ViewPager2
         android:id="@+id/pager"
@@ -16,7 +16,7 @@
         android:layout_gravity="top"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:background="#66000000"
+        android:background="@color/viewer_overlay"
         android:paddingTop="8dp"
         android:paddingBottom="8dp">
 
@@ -38,7 +38,7 @@
                 android:id="@+id/text_file_name"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="#FFFFFF"
+                android:textColor="@color/text_on_dark"
                 android:textSize="16sp"
                 android:maxLines="1"
                 android:ellipsize="middle" />
@@ -47,9 +47,17 @@
                 android:id="@+id/text_taken_time"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="#CCCCCC"
+                android:textColor="@color/text_on_dark_secondary"
                 android:textSize="12sp" />
         </LinearLayout>
+
+        <ImageButton
+            android:id="@+id/btn_info"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_info"
+            android:contentDescription="@string/content_desc_info" />
     </LinearLayout>
 
     <LinearLayout
@@ -59,7 +67,7 @@
         android:layout_gravity="bottom"
         android:orientation="horizontal"
         android:gravity="center"
-        android:background="#66000000">
+        android:background="@color/viewer_overlay">
 
         <ImageButton
             android:id="@+id/btn_share"

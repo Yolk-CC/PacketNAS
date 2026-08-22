@@ -1,4 +1,56 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.PocketNASClient" parent="Theme.Material3.DayNight.NoActionBar" />
+    <!-- M14: unified DayNight theme driven by the design tokens in colors.xml
+         (dark values in values-night/colors.xml). NoActionBar kept as before. -->
+    <style name="Theme.PocketNAS" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorOnPrimary">@color/text_on_primary</item>
+        <item name="colorSecondary">@color/primary</item>
+        <item name="colorSurface">@color/card</item>
+        <item name="android:colorBackground">@color/background</item>
+        <item name="android:windowBackground">@color/background</item>
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+        <item name="materialButtonStyle">@style/Widget.PocketNAS.Button</item>
+    </style>
+
+    <!-- Backward-compatible alias; the manifest references this name. -->
+    <style name="Theme.PocketNASClient" parent="Theme.PocketNAS" />
+
+    <!-- Buttons: 12dp corner radius per M14 tokens. -->
+    <style name="Widget.PocketNAS.Button" parent="Widget.Material3.Button">
+        <item name="shapeAppearance">@style/ShapeAppearance.PocketNAS.Button</item>
+    </style>
+
+    <style name="ShapeAppearance.PocketNAS.Button" parent="">
+        <item name="cornerSize">@dimen/button_corner_radius</item>
+    </style>
+
+    <!-- Detail sheet rows (M14). -->
+    <style name="Widget.PocketNAS.DetailLabel" parent="">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">10dp</item>
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:textSize">12sp</item>
+    </style>
+
+    <style name="Widget.PocketNAS.DetailValue" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">2dp</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:textIsSelectable">true</item>
+    </style>
+
+    <!-- Unified empty-state text style (M14). -->
+    <style name="Widget.PocketNAS.EmptyText" parent="">
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:drawableTop">@drawable/ic_empty</item>
+        <item name="android:drawablePadding">12dp</item>
+        <item name="android:drawableTint">@color/text_secondary</item>
+    </style>
 </resources>

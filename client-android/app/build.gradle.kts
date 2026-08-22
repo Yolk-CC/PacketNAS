@@ -31,6 +31,7 @@ android {
     }
     buildFeatures {
         viewBinding = true
+        buildConfig = true // M14: about section shows BuildConfig.VERSION_NAME
     }
 }
 

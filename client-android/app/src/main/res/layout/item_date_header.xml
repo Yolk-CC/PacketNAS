@@ -8,4 +8,5 @@
     android:paddingEnd="24dp"
     android:textStyle="bold"
     android:textSize="14sp"
-    android:background="#FAFAF7" />
+    android:textColor="@color/text_primary"
+    android:background="@color/background" />
