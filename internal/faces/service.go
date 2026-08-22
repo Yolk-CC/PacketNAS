@@ -187,7 +187,7 @@ func (s *Service) Reload() {
 		}
 	}
 	if libPath == "" {
-		s.reason = "onnxruntime library not found (download it from the settings page)"
+		s.reason = "onnxruntime library not found (download it from the recognition center: library.html?tab=faces)"
 		return
 	}
 	for _, m := range []string{prof.DetModel, prof.RecModel} {
