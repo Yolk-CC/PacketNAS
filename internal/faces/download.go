@@ -222,9 +222,19 @@ func (s *Service) downloadArchiveMember(arc *ortArchive, dst string) error {
 	}
 }
 
+// createTemp creates a temp file inside the models dir (writable on all
+// platforms; os.TempDir() is /data/local/tmp on Android which apps cannot
+// write to). The models dir is created lazily if needed.
+func (s *Service) createTemp(pattern string) (*os.File, error) {
+	if err := os.MkdirAll(s.modelsDir, 0o755); err != nil {
+		return nil, err
+	}
+	return os.CreateTemp(s.modelsDir, pattern)
+}
+
 // extractFromZipStream must buffer the whole archive (zip needs a ReaderAt).
 func (s *Service) extractFromZipStream(r io.Reader, member, dst string, total int64) error {
-	tmp, err := os.CreateTemp("", "ort-*.zip")
+	tmp, err := s.createTemp("ort-*.zip")
 	if err != nil {
 		return err
 	}
@@ -259,7 +269,7 @@ func (s *Service) downloadZipMembers(url string, members []string) error {
 	}
 	defer body.Close()
 	s.setDl(filepath.Base(url), total)
-	tmp, err := os.CreateTemp("", "models-*.zip")
+	tmp, err := s.createTemp("models-*.zip")
 	if err != nil {
 		return err
 	}
