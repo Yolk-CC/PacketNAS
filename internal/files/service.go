@@ -488,11 +488,18 @@ func (s *Service) Move(srcRels []string, destDirRel string) error {
 		if s.isVirtualRootAbs(srcAbs) {
 			return fmt.Errorf("%w: cannot move root", ErrBadRequest)
 		}
-		if _, err := os.Stat(srcAbs); err != nil {
+		srcInfo, err := os.Stat(srcAbs)
+		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 				return ErrNotFound
 			}
 			return err
+		}
+		// Reject moving a directory into itself or one of its own
+		// subdirectories (would otherwise nest it recursively).
+		if srcInfo.IsDir() &&
+			(destAbs == srcAbs || strings.HasPrefix(destAbs, srcAbs+string(os.PathSeparator))) {
+			return fmt.Errorf("%w: cannot move a directory into itself", ErrBadRequest)
 		}
 		target := filepath.Join(destAbs, filepath.Base(srcAbs))
 		if target == srcAbs {
