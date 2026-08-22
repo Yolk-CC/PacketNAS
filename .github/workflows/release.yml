@@ -73,6 +73,11 @@ jobs:
           mkdir -p android/app/libs
           gomobile bind -target=android/arm64 -androidapi 26 \
             -o android/app/libs/pocketnas.aar ./mobile
+      - name: Inject version from tag
+        run: |
+          VER="${VERSION#v}"
+          sed -i -E "s/versionCode [0-9]+/versionCode ${{ github.run_number }}/; s/versionName \"[^\"]+\"/versionName \"$VER\"/" android/app/build.gradle
+          grep -nE "versionCode|versionName" android/app/build.gradle
       # M11: bundle onnxruntime-mobile so Android gets face recognition.
       # Optional per SPEC-M11 §5: failure leaves faces_unavailable degrade.
       - name: Bundle onnxruntime-mobile .so (optional)
@@ -109,14 +114,19 @@ jobs:
           java-version: "17"
       - uses: android-actions/setup-android@v3
       - uses: gradle/actions/setup-gradle@v4
-      - name: Assemble client APK
+      - name: Inject version from tag
+        run: |
+          VER="${VERSION#v}"
+          sed -i -E "s/versionCode = [0-9]+/versionCode = ${{ github.run_number }}/; s/versionName = \"[^\"]+\"/versionName = \"$VER\"/" client-android/app/build.gradle.kts
+          grep -nE "versionCode|versionName" client-android/app/build.gradle.kts
+      - name: Run client unit tests
         working-directory: client-android
         run: |
           gradle wrapper --gradle-version 8.9 --no-daemon
-          ./gradlew assembleDebug --no-daemon
-      - name: Run client unit tests
+          ./gradlew testDebugUnitTest --no-daemon
+      - name: Assemble client APK
         working-directory: client-android
-        run: ./gradlew testDebugUnitTest --no-daemon
+        run: ./gradlew assembleDebug --no-daemon
       - name: Rename APK artifact
         run: |
           mv client-android/app/build/outputs/apk/debug/app-debug.apk \
