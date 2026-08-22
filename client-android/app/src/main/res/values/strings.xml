@@ -38,6 +38,7 @@
 
     <!-- bottom tabs (SPEC-M10) -->
     <string name="tab_gallery">相册</string>
+    <string name="tab_people">人物</string>
     <string name="tab_files">文件</string>
     <string name="tab_settings">设置</string>
     <string name="settings_placeholder">设置功能即将推出</string>
@@ -64,4 +65,16 @@
     <string name="error_name_invalid">名称不能包含 / 或为 . / ..</string>
     <string name="file_no_viewer">暂不支持预览此类型，请长按下载</string>
     <string name="content_desc_select">选择</string>
+
+    <!-- people tab (SPEC-M12) -->
+    <string name="empty_people">还没有识别出人物</string>
+    <string name="faces_unavailable_hint">请到服务器 Web 设置页下载模型并开始识别</string>
+    <string name="faces_unavailable_reason">人脸识别不可用：%1$s</string>
+    <string name="person_photo_count">%1$d 张照片</string>
+    <string name="name_person_title">命名人物</string>
+    <string name="hint_person_name">人物姓名</string>
+    <string name="btn_merge">合并</string>
+    <string name="merge_done">已合并</string>
+    <string name="rename_person_done">已命名</string>
+    <string name="confirm_merge_persons">将「%1$s」合并到「%2$s」？</string>
 </resources>
