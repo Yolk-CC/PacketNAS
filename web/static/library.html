@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<script>(function(){var t=localStorage.getItem('pocket-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;})();</script>
+<title>PocketNAS 图库</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<aside class="sidenav">
+  <a class="brand" href="overview.html">PocketNAS</a>
+  <a class="nav-item" href="overview.html"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>总览</a>
+  <a class="nav-item" href="files.html"><svg class="icon" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>文件</a>
+  <a class="nav-item" href="library.html"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-4.5-4.5L6 21"/></svg>图库</a>
+  <div class="nav-sub">
+    <a class="nav-item sub" href="library.html?tab=photos">照片</a>
+    <a class="nav-item sub" href="library.html?tab=people">人物</a>
+    <a class="nav-item sub" href="library.html?tab=faces">识别中心<span class="badge warning hidden" id="nav-faces-badge"></span></a>
+  </div>
+  <a class="nav-item" href="shares.html"><svg class="icon" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"/></svg>共享</a>
+  <a class="nav-item" href="settings.html"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>设置</a>
+  <div class="nav-foot">
+    <button class="icon-btn" data-action="toggle-theme" aria-label="切换主题"></button>
+    <button class="icon-btn" data-action="logout" aria-label="退出登录"><svg class="icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></svg></button>
+  </div>
+</aside>
+
+<div class="mobile-topbar">
+  <div class="m-row">
+    <a class="brand" href="overview.html">PocketNAS</a>
+    <div>
+      <button class="icon-btn" data-action="toggle-theme" aria-label="切换主题"></button>
+      <button class="icon-btn" data-action="logout" aria-label="退出登录"><svg class="icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></svg></button>
+    </div>
+  </div>
+  <nav class="mobile-tabs">
+    <a class="m-tab" href="overview.html">总览</a>
+    <a class="m-tab" href="files.html">文件</a>
+    <a class="m-tab" href="library.html">图库</a>
+    <a class="m-tab" href="shares.html">共享</a>
+    <a class="m-tab" href="settings.html">设置</a>
+  </nav>
+</div>
+
+<div class="main-col">
+  <header class="page-head">
+    <div class="page-title-group">
+      <h1>图库</h1>
+    </div>
+    <div class="page-actions">
+      <nav class="tabs" id="lib-tabs" aria-label="图库子页">
+        <a class="tab" data-tab="photos" href="library.html?tab=photos">照片</a>
+        <a class="tab" data-tab="people" href="library.html?tab=people">人物</a>
+        <a class="tab" data-tab="faces" href="library.html?tab=faces">识别中心<span class="badge warning hidden" id="tab-faces-badge"></span></a>
+      </nav>
+      <select id="type-filter" class="select hidden" title="类型筛选" aria-label="类型筛选">
+        <option value="all">全部</option>
+        <option value="image">图片</option>
+        <option value="video">视频</option>
+      </select>
+      <button id="btn-rescan" class="btn hidden">重新识别</button>
+    </div>
+  </header>
+
+  <main class="page-content" id="lib-content">
+    <!-- 子页：照片（时间线，沿用 M2–M4 gallery 逻辑） -->
+    <section id="tab-photos" class="hidden">
+      <div class="scan-status"><span id="scan-text">加载中…</span></div>
+      <div id="gallery-area" class="gallery-area">
+        <div id="grid" class="grid"></div>
+        <div id="empty-hint" class="empty hidden">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-4.5-4.5L6 21"/></svg>
+          <div class="empty-title">还没有照片</div>
+          <div class="empty-sub">在「共享」中添加照片目录后，系统会自动开始扫描</div>
+          <a class="btn primary" href="shares.html">前往共享</a>
+        </div>
+        <p id="loading-hint" class="muted center hidden">加载中…</p>
+        <p id="end-hint" class="muted center hidden">已加载全部</p>
+        <div id="scroll-sentinel"></div>
+      </div>
+    </section>
+
+    <!-- 子页：人物（沿用 M11 people 逻辑） -->
+    <section id="tab-people" class="hidden">
+      <div class="scan-status"><span id="status-text">加载中…</span></div>
+      <div id="people-view" class="gallery-area">
+        <div id="people-grid" class="grid"></div>
+        <div id="people-empty" class="empty hidden">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></svg>
+          <div class="empty-title">还没有识别人物</div>
+          <div class="empty-sub">去「识别中心」下载模型并开始识别</div>
+          <a class="btn primary" href="library.html?tab=faces">前往识别中心</a>
+        </div>
+      </div>
+      <div id="person-view" class="gallery-area hidden">
+        <div class="person-header">
+          <button id="btn-back" class="btn ghost">← 返回</button>
+          <h2 id="person-name">未命名</h2>
+          <input type="text" id="person-name-input" class="input hidden" placeholder="输入名字">
+          <button id="btn-rename" class="btn">命名</button>
+          <select id="merge-target" class="select" title="合并到其他人物"></select>
+          <button id="btn-merge" class="btn">合并到所选</button>
+        </div>
+        <div id="photo-grid" class="grid"></div>
+        <p id="photo-empty" class="muted center hidden">该人物暂时没有可显示的照片</p>
+      </div>
+    </section>
+
+    <!-- 子页：识别中心（自旧设置页人脸卡片迁入） -->
+    <section id="tab-faces" class="hidden">
+      <div class="settings-stack content-narrow" style="margin:0 auto">
+        <div id="faces-first-hint" class="alert-bar warning hidden">
+          <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M12 11v5"/></svg>
+          首次使用需要先下载模型，推荐选择 buffalo_s（均衡）
+        </div>
+
+        <!-- ① 模型卡 -->
+        <section class="card">
+          <div class="card-head">
+            <h2>识别模型</h2>
+            <span class="badge accent" id="faces-current-profile">–</span>
+          </div>
+          <div class="profile-cards" id="profile-cards"></div>
+          <div id="faces-download-row" class="hidden" style="margin-top:var(--sp-4)">
+            <div class="progress" id="faces-download-progress-bar">
+              <div class="track"><div class="fill" style="width:0"></div></div>
+              <span class="pct" id="faces-download-pct"></span>
+            </div>
+            <p class="field-hint" id="faces-download-text"></p>
+          </div>
+          <div class="faces-actions">
+            <button id="btn-faces-download" class="btn">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+              下载模型与运行库
+            </button>
+            <button id="btn-faces-apply" class="btn primary">应用</button>
+            <span class="field-hint hidden" id="faces-apply-hint">需先下载</span>
+          </div>
+          <p class="field-hint" id="faces-models"></p>
+        </section>
+
+        <!-- ② 识别队列卡 -->
+        <section class="card">
+          <div class="card-head">
+            <h2>识别队列</h2>
+            <span class="badge neutral" id="faces-queue-badge">空闲</span>
+          </div>
+          <div class="progress" id="faces-queue-progress">
+            <div class="track"><div class="fill" id="faces-queue-fill" style="width:0"></div></div>
+            <span class="pct" id="faces-queue-pct"></span>
+          </div>
+          <p class="field-hint" id="faces-queue-text">状态加载中…</p>
+          <div class="faces-actions">
+            <button id="btn-faces-scan" class="btn primary">开始识别</button>
+          </div>
+        </section>
+
+        <!-- ③ 数据卡 -->
+        <section class="card">
+          <div class="card-head"><h2>数据备份</h2></div>
+          <p class="modal-desc">导出包含人物命名与人脸特征数据，可用于迁移或备份。</p>
+          <div class="faces-actions">
+            <button id="btn-faces-export" class="btn">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 8l5-5 5 5M12 3v12"/></svg>
+              导出数据
+            </button>
+            <button id="btn-faces-import" class="btn">导入数据…</button>
+            <a class="btn ghost" href="library.html?tab=people">查看人物 →</a>
+            <input type="file" id="faces-import-file" accept=".gz,.json" hidden>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- 停止识别确认模态 -->
+<div id="stop-modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-card narrow">
+    <h3>停止识别</h3>
+    <p class="modal-desc">确定停止识别吗？已处理的进度会保留。</p>
+    <div class="modal-actions">
+      <button id="stop-cancel" class="btn ghost">取消</button>
+      <button id="stop-ok" class="btn danger">停止</button>
+    </div>
+  </div>
+</div>
+
+<!-- 导入确认模态 -->
+<div id="import-modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-card narrow">
+    <h3>导入人脸数据</h3>
+    <p class="modal-desc" id="import-desc">导入将合并到现有数据</p>
+    <div class="modal-actions">
+      <button id="import-cancel" class="btn ghost">取消</button>
+      <button id="import-ok" class="btn primary">导入</button>
+    </div>
+  </div>
+</div>
+
+<!-- 灯箱（沿用 M2–M4，不参与主题切换） -->
+<div id="lightbox" class="lightbox hidden">
+  <div class="lb-topbar">
+    <div class="lb-info">
+      <div id="lb-name" class="lb-name"></div>
+      <div id="lb-time" class="lb-time"></div>
+    </div>
+    <select id="lb-quality" class="lb-quality hidden" title="清晰度"></select>
+    <div class="lb-pos" id="lb-pos"></div>
+    <button id="lb-close" class="lb-btn" title="关闭 (Esc)" aria-label="关闭">&times;</button>
+  </div>
+  <button id="lb-prev" class="lb-btn lb-nav lb-prev" title="上一张 (←)" aria-label="上一张">&lt;</button>
+  <div id="lb-stage" class="lb-stage">
+    <img id="lb-img" class="lb-media hidden" alt="">
+    <video id="lb-video" class="lb-media hidden" controls playsinline></video>
+    <video id="lb-live" class="lb-live hidden" loop playsinline></video>
+    <button id="lb-mute" class="lb-btn lb-mute hidden" title="静音/取消静音">&#128263;</button>
+    <div id="lb-overlay" class="lb-overlay hidden"><span id="lb-overlay-text">转码中…</span></div>
+  </div>
+  <button id="lb-next" class="lb-btn lb-nav lb-next" title="下一张 (→)" aria-label="下一张">&gt;</button>
+</div>
+
+<div id="toast-stack"></div>
+
+<script src="theme.js"></script>
+<script src="library.js"></script>
+</body>
+</html>

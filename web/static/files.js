@@ -1,5 +1,6 @@
-/* PocketNAS M1 Web 文件管理器 —— 原生 fetch，无框架，无外部依赖。
- * API 契约见 SPEC §3。 */
+/* PocketNAS M13 文件页 —— 自 M1 app.js 迁入，功能逻辑不变：
+ * 列表 / 面包屑 / 类型筛选 / 上传（含拖拽）/ 下载 / 行内重命名 / 删除 / 新建文件夹。
+ * 变化：SVG 图标替换 emoji、toast 走 PocketToast、删除/新建用模态框、401 跳总览登录。 */
 (function () {
   'use strict';
 
@@ -11,26 +12,18 @@
 
   /* ---------- DOM ---------- */
   var $ = function (id) { return document.getElementById(id); };
-  var loginView = $('login-view'), mainView = $('main-view');
   var breadcrumbEl = $('breadcrumb'), fileListEl = $('file-list');
-  var toastEl = $('toast'), listArea = $('list-area');
-  var emptyHint = $('empty-hint'), dropHint = $('drop-hint');
+  var listArea = $('list-area');
+  var emptyHint = $('empty-hint'), noShareHint = $('no-share-hint'), dropHint = $('drop-hint');
+  var toast = window.PocketToast;
 
   /* ---------- 工具 ---------- */
-  function toast(msg, isError) {
-    toastEl.textContent = msg;
-    toastEl.className = 'toast' + (isError ? ' error' : '');
-    clearTimeout(toastEl._timer);
-    toastEl._timer = setTimeout(function () { toastEl.classList.add('hidden'); }, 3500);
-  }
-
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
   }
 
-  // 将 "/sub/dir" 形式的相对路径编码为 URL 片段（每段 encodeURIComponent）
   function encodePath(p) {
     return p.split('/').filter(Boolean).map(encodeURIComponent).join('/');
   }
@@ -56,38 +49,43 @@
       ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
   }
 
+  /* 文件类型图标（内联 SVG，stroke currentColor） */
+  var TYPE_ICONS = {
+    folder: '<svg class="icon" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
+    image: '<svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-4.5-4.5L6 21"/></svg>',
+    video: '<svg class="icon" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>',
+    audio: '<svg class="icon" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>',
+    doc: '<svg class="icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>',
+    archive: '<svg class="icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9M10 13h4"/></svg>',
+    file: '<svg class="icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>'
+  };
+
   function iconFor(entry) {
-    if (entry.isDir) return '\uD83D\uDCC1';            // 📁
+    if (entry.isDir) return TYPE_ICONS.folder;
     var mime = entry.mimeType || '';
-    if (mime.indexOf('image/') === 0) return '\uD83D\uDDBC\uFE0F'; // 🖼️
-    if (mime.indexOf('video/') === 0) return '\uD83C\uDFAC';       // 🎬
-    return '\uD83D\uDCC4';                              // 📄
+    var name = (entry.name || '').toLowerCase();
+    if (mime.indexOf('image/') === 0) return TYPE_ICONS.image;
+    if (mime.indexOf('video/') === 0) return TYPE_ICONS.video;
+    if (mime.indexOf('audio/') === 0) return TYPE_ICONS.audio;
+    if (mime.indexOf('text/') === 0 || /\.(md|txt|pdf|docx?|xlsx?|pptx?)$/.test(name)) return TYPE_ICONS.doc;
+    if (/\.(zip|tar|gz|tgz|rar|7z|bz2|xz)$/.test(name)) return TYPE_ICONS.archive;
+    return TYPE_ICONS.file;
   }
 
   /* ---------- 鉴权与请求封装 ---------- */
   function getToken() { return localStorage.getItem(TOKEN_KEY) || ''; }
 
-  function showLogin(msg) {
-    mainView.classList.add('hidden');
-    loginView.classList.remove('hidden');
-    var err = $('login-error');
-    if (msg) { err.textContent = msg; err.classList.remove('hidden'); }
-    else err.classList.add('hidden');
+  function backToLogin() {
+    window.location.href = 'overview.html';
   }
 
-  function showMain() {
-    loginView.classList.add('hidden');
-    mainView.classList.remove('hidden');
-  }
-
-  // 统一 fetch：自动带 token；401 切登录页；error 体 toast
   function api(url, options) {
     options = options || {};
     options.headers = options.headers || {};
     options.headers['X-Auth-Token'] = getToken();
     return fetch(url, options).then(function (res) {
       if (res.status === 401) {
-        showLogin('登录已过期，请重新登录');
+        backToLogin();
         throw new Error('unauthorized');
       }
       var ct = res.headers.get('Content-Type') || '';
@@ -95,7 +93,7 @@
       return bodyPromise.then(function (body) {
         if (!res.ok) {
           var msg = (body && body.error && body.error.message) || ('请求失败 (' + res.status + ')');
-          toast(msg, true);
+          toast(msg, 'error');
           throw new Error(msg);
         }
         return body;
@@ -103,31 +101,58 @@
     });
   }
 
-  /* ---------- 登录 ---------- */
-  $('login-form').addEventListener('submit', function (e) {
-    e.preventDefault();
-    var pwd = $('login-password').value;
-    fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: pwd })
-    }).then(function (res) {
-      return res.json().then(function (body) {
-        if (!res.ok) {
-          showLogin((body.error && body.error.message) || '登录失败');
-          return;
-        }
-        localStorage.setItem(TOKEN_KEY, body.token || '');
-        $('login-password').value = '';
-        enterMain();
-      });
-    }).catch(function () { showLogin('网络错误'); });
+  /* ---------- 模态框 helpers ---------- */
+  var lastFocus = null;
+
+  function openModal(modal, focusEl) {
+    lastFocus = document.activeElement;
+    modal.classList.remove('hidden');
+    (focusEl || modal.querySelector('button')).focus();
+  }
+  function closeModal(modal) {
+    modal.classList.add('hidden');
+    if (lastFocus && lastFocus.focus) lastFocus.focus();
+  }
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    ['confirm-modal', 'prompt-modal'].forEach(function (id) {
+      var m = $(id);
+      if (!m.classList.contains('hidden')) closeModal(m);
+    });
   });
 
-  $('btn-logout').addEventListener('click', function () {
-    localStorage.removeItem(TOKEN_KEY);
-    showLogin();
-  });
+  function confirmDialog(title, desc, okLabel, onOk) {
+    $('confirm-title').textContent = title;
+    $('confirm-desc').textContent = desc;
+    $('confirm-ok').textContent = okLabel;
+    var modal = $('confirm-modal');
+    var okBtn = $('confirm-ok');
+    var newOk = okBtn.cloneNode(true);
+    okBtn.parentNode.replaceChild(newOk, okBtn);
+    newOk.addEventListener('click', function () { closeModal(modal); onOk(); });
+    $('confirm-cancel').onclick = function () { closeModal(modal); };
+    openModal(modal, newOk);
+  }
+
+  function promptDialog(title, placeholder, okLabel, onOk) {
+    $('prompt-title').textContent = title;
+    var input = $('prompt-input');
+    input.placeholder = placeholder || '';
+    input.value = '';
+    var modal = $('prompt-modal');
+    $('prompt-ok').textContent = okLabel;
+    $('prompt-ok').onclick = function () {
+      var v = input.value.trim();
+      if (!v) return;
+      closeModal(modal);
+      onOk(v);
+    };
+    $('prompt-cancel').onclick = function () { closeModal(modal); };
+    input.onkeydown = function (e) {
+      if (e.key === 'Enter') $('prompt-ok').click();
+    };
+    openModal(modal, input);
+  }
 
   /* ---------- 面包屑 ---------- */
   function renderBreadcrumb() {
@@ -156,6 +181,8 @@
   }
 
   /* ---------- 文件列表 ---------- */
+  var itemCount = 0;
+
   function navigate(path) {
     state.path = path || '/';
     renderBreadcrumb();
@@ -172,8 +199,9 @@
 
   function renderList(entries) {
     fileListEl.innerHTML = '';
+    itemCount = entries.length;
     emptyHint.classList.toggle('hidden', entries.length > 0);
-    // 目录排前、名称排序（服务端已排序，这里兜底）
+    noShareHint.classList.add('hidden');
     entries.sort(function (a, b) {
       if (a.isDir !== b.isDir) return a.isDir ? -1 : 1;
       return a.name.localeCompare(b.name);
@@ -195,18 +223,20 @@
       var sizeTd = document.createElement('td');
       sizeTd.textContent = formatSize(entry.size, entry.isDir);
       var timeTd = document.createElement('td');
+      timeTd.className = 'col-time';
       timeTd.textContent = formatTime(entry.modified);
 
       var opsTd = document.createElement('td');
       opsTd.className = 'ops-col';
       opsTd.appendChild(opBtn('下载', function () { downloadFile(entry); }));
-      opsTd.appendChild(opBtn('重命名', function () { renameEntry(entry); }));
+      opsTd.appendChild(opBtn('重命名', function () { startInlineRename(nameTd, entry); }));
       opsTd.appendChild(opBtn('删除', function () { deleteEntry(entry); }, true));
 
       tr.appendChild(nameTd); tr.appendChild(sizeTd);
       tr.appendChild(timeTd); tr.appendChild(opsTd);
       fileListEl.appendChild(tr);
     });
+    updateStatus();
   }
 
   function opBtn(label, fn, danger) {
@@ -217,16 +247,46 @@
     return b;
   }
 
+  /* ---------- 行内重命名（Enter 确认 / Esc 取消） ---------- */
+  function startInlineRename(nameTd, entry) {
+    var old = nameTd.querySelector('.name-cell');
+    var input = document.createElement('input');
+    input.className = 'input rename-input';
+    input.value = entry.name;
+    nameTd.replaceChild(input, old);
+    input.focus();
+    input.select();
+    var done = false;
+    function restore() {
+      if (!done) { done = true; loadList(); }
+    }
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        var v = input.value.trim();
+        if (!v || v === entry.name) { restore(); return; }
+        done = true;
+        api('/api/files/rename', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: entry.path, newName: v })
+        }).then(function () { toast('已重命名', 'success'); loadList(); })
+          .catch(function () { loadList(); });
+      } else if (e.key === 'Escape') {
+        restore();
+      }
+    });
+    input.addEventListener('blur', restore);
+  }
+
   /* ---------- 下载 ---------- */
   function downloadFile(entry) {
     var url = '/api/download/' + encodePath(entry.path);
     if (entry.isDir) url += '?archive=zip'; // 目录打包 ZIP（SPEC 3.4）
-    // 下载接口也需要 X-Auth-Token，故用 fetch + blob 触发保存。
     fetch(url, { headers: { 'X-Auth-Token': getToken() } }).then(function (res) {
-      if (res.status === 401) { showLogin('登录已过期，请重新登录'); return null; }
+      if (res.status === 401) { backToLogin(); return null; }
       if (!res.ok) {
         return res.json().then(function (b) {
-          toast((b.error && b.error.message) || '下载失败', true);
+          toast((b.error && b.error.message) || '下载失败', 'error');
         });
       }
       return res.blob().then(function (blob) {
@@ -239,37 +299,33 @@
         a.remove();
         setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
       });
-    }).catch(function () { toast('下载失败', true); });
+    }).catch(function () { toast('下载失败', 'error'); });
   }
 
-  /* ---------- 文件操作 ---------- */
-  function renameEntry(entry) {
-    var newName = window.prompt('新名称：', entry.name);
-    if (!newName || newName === entry.name) return;
-    api('/api/files/rename', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ path: entry.path, newName: newName })
-    }).then(function () { toast('已重命名'); loadList(); }).catch(function () {});
-  }
-
+  /* ---------- 删除 / 新建 ---------- */
   function deleteEntry(entry) {
-    if (!window.confirm('确认删除「' + entry.name + '」？' + (entry.isDir ? '（目录将递归删除）' : ''))) return;
-    api('/api/files', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ paths: [entry.path] })
-    }).then(function () { toast('已删除'); loadList(); }).catch(function () {});
+    confirmDialog(
+      '删除' + (entry.isDir ? '目录' : '文件'),
+      '确定删除「' + entry.name + '」吗？此操作不可恢复' + (entry.isDir ? '（目录将递归删除）' : ''),
+      '删除',
+      function () {
+        api('/api/files', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ paths: [entry.path] })
+        }).then(function () { toast('已删除', 'success'); loadList(); }).catch(function () {});
+      }
+    );
   }
 
   $('btn-mkdir').addEventListener('click', function () {
-    var name = window.prompt('新文件夹名称：');
-    if (!name) return;
-    api('/api/files/mkdir', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ dir: state.path, name: name })
-    }).then(function () { toast('已创建'); loadList(); }).catch(function () {});
+    promptDialog('新建文件夹', '文件夹名称', '创建', function (name) {
+      api('/api/files/mkdir', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dir: state.path, name: name })
+      }).then(function () { toast('已创建', 'success'); loadList(); }).catch(function () {});
+    });
   });
 
   /* ---------- 上传 ---------- */
@@ -283,11 +339,12 @@
   function uploadFiles(files) {
     var fd = new FormData();
     for (var i = 0; i < files.length; i++) fd.append('file', files[i]);
+    toast('正在上传 ' + files.length + ' 个文件…', 'info');
     api('/api/upload?path=' + encodeURIComponent(state.path), {
       method: 'POST',
       body: fd
     }).then(function (body) {
-      toast('已上传 ' + (body.uploaded ? body.uploaded.length : files.length) + ' 个文件');
+      toast('已上传 ' + (body.uploaded ? body.uploaded.length : files.length) + ' 个文件', 'success');
       loadList();
     }).catch(function () {});
   }
@@ -316,27 +373,30 @@
     loadList();
   });
 
-  /* ---------- 系统信息 ---------- */
+  /* ---------- 底部状态条 ---------- */
+  var diskInfo = null;
+  function updateStatus() {
+    var parts = ['共 ' + itemCount + ' 项'];
+    if (diskInfo) parts.push('剩余空间 ' + formatSize(diskInfo.diskFree, false));
+    $('sysinfo').textContent = parts.join(' · ');
+  }
+
   function loadSysInfo() {
     api('/api/system/info').then(function (info) {
-      $('sysinfo').textContent = 'v' + info.version +
-        ' · 可用 ' + formatSize(info.diskFree, false) +
-        ' / ' + formatSize(info.diskTotal, false);
+      diskInfo = info;
+      updateStatus();
     }).catch(function () {});
   }
 
   /* ---------- 启动 ---------- */
-  function enterMain() {
-    showMain();
-    navigate('/');
-    loadSysInfo();
-  }
-
-  // 启动时试探一次列表：401 → 登录页；成功 → 主视图
   api('/api/files?path=' + encodeURIComponent('/') + '&type=all')
-    .then(function () { enterMain(); })
+    .then(function () {
+      navigate('/');
+      loadSysInfo();
+    })
     .catch(function (err) {
-      if (err && err.message === 'unauthorized') return; // showLogin 已触发
-      showLogin();
+      if (err && err.message === 'unauthorized') return; // 已跳总览登录
+      // 其他错误（如无共享的 legacy 提示不在此处）仍尝试渲染空态
+      navigate('/');
     });
 })();

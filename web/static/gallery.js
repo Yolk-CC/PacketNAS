@@ -20,7 +20,7 @@
 
   /* ---------- DOM ---------- */
   var $ = function (id) { return document.getElementById(id); };
-  var gridEl = $('grid'), toastEl = $('toast');
+  var gridEl = $('grid');
   var emptyHint = $('empty-hint'), loadingHint = $('loading-hint'), endHint = $('end-hint');
   var scanText = $('scan-text');
   var lightbox = $('lightbox'), lbStage = $('lb-stage');
@@ -30,17 +30,14 @@
   var lbName = $('lb-name'), lbTime = $('lb-time'), lbPos = $('lb-pos');
 
   /* ---------- 工具 ---------- */
-  function toast(msg, isError) {
-    toastEl.textContent = msg;
-    toastEl.className = 'toast' + (isError ? ' error' : '');
-    clearTimeout(toastEl._timer);
-    toastEl._timer = setTimeout(function () { toastEl.classList.add('hidden'); }, 3500);
-  }
+  var toast = window.PocketToast ? function (msg, isError) {
+    window.PocketToast(msg, isError ? 'error' : 'info');
+  } : function () {};
 
   function getToken() { return localStorage.getItem(TOKEN_KEY) || ''; }
 
   function backToLogin() {
-    window.location.href = 'index.html';
+    window.location.href = 'overview.html';
   }
 
   // 将 "/DCIM/a.jpg" 形式的相对路径编码为 URL 片段（每段 encodeURIComponent）
@@ -217,14 +214,17 @@
   }
 
   /* ---------- 类型筛选 ---------- */
+  // M13：支持 URL ?type=image|video 初始筛选（总览视频卡跳转）
+  (function () {
+    var t = new URLSearchParams(location.search).get('type');
+    if (t === 'image' || t === 'video') {
+      state.typeFilter = t;
+      $('type-filter').value = t;
+    }
+  })();
   $('type-filter').addEventListener('change', function (e) {
     state.typeFilter = e.target.value;
     resetAndReload();
-  });
-
-  $('btn-logout').addEventListener('click', function () {
-    localStorage.removeItem(TOKEN_KEY);
-    backToLogin();
   });
 
   /* ---------- 灯箱 ---------- */
