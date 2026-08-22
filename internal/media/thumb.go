@@ -28,7 +28,9 @@ const (
 var ErrNotThumbable = errors.New("media type not supported for thumbnails")
 
 // Thumber generates and caches thumbnails on disk under
-// <root>/.pocketnas/thumb/, keyed by sha256 of the root-relative path.
+// <root>/.pocketnas/thumb/, keyed by sha256 of the root-relative path,
+// requested size and source mtime (so size variants coexist and edits
+// invalidate stale entries).
 type Thumber struct {
 	root     string // resolved root
 	thumbDir string
@@ -46,9 +48,10 @@ func NewThumber(root string) (*Thumber, error) {
 	return t, nil
 }
 
-// cacheName returns the cache file name for a root-relative path.
-func cacheName(rel string) string {
-	sum := sha256.Sum256([]byte(rel))
+// cacheName returns the cache file name for a root-relative path at the
+// requested size w×h and source modification time mtime (unix seconds).
+func cacheName(rel string, w, h int, mtime int64) string {
+	sum := sha256.Sum256([]byte(fmt.Sprintf("%s|%dx%d|%d", rel, w, h, mtime)))
 	return hex.EncodeToString(sum[:]) + ".jpg"
 }
 
@@ -56,7 +59,11 @@ func cacheName(rel string) string {
 // generating it on a cache miss. Generation is limited to thumbWorkers
 // concurrent jobs.
 func (t *Thumber) Get(ctx context.Context, abs, rel string, w, h int) (string, error) {
-	dst := filepath.Join(t.thumbDir, cacheName(rel))
+	info, err := os.Stat(abs)
+	if err != nil {
+		return "", err
+	}
+	dst := filepath.Join(t.thumbDir, cacheName(rel, w, h, info.ModTime().Unix()))
 	if st, err := os.Stat(dst); err == nil && st.Size() > 0 {
 		return dst, nil // cache hit
 	}

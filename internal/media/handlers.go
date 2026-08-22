@@ -266,7 +266,7 @@ func (h *Handler) Thumb(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if m, _ := h.store.Get(rel); m != nil && m.ThumbnailPath == "" {
-		_ = h.store.SetThumbnail(rel, cacheName(rel))
+		_ = h.store.SetThumbnail(rel, cacheName(rel, tw, th, info.ModTime().Unix()))
 	}
 	w.Header().Set("Cache-Control", "private, max-age=86400")
 	http.ServeFile(w, r, thumbAbs)

@@ -55,6 +55,62 @@ func TestThumbnailGenerationAndCache(t *testing.T) {
 	}
 }
 
+func TestCacheNameKeyIncludesSizeAndMtime(t *testing.T) {
+	base := cacheName("/photo.jpg", 300, 300, 1000)
+	if cacheName("/photo.jpg", 300, 300, 1000) != base {
+		t.Fatal("cache key not deterministic")
+	}
+	if cacheName("/photo.jpg", 640, 480, 1000) == base {
+		t.Fatal("different sizes must not share a cache key")
+	}
+	if cacheName("/photo.jpg", 300, 300, 2000) == base {
+		t.Fatal("different mtimes must not share a cache key")
+	}
+	if cacheName("/other.jpg", 300, 300, 1000) == base {
+		t.Fatal("different paths must not share a cache key")
+	}
+}
+
+func TestThumbnailCacheInvalidation(t *testing.T) {
+	root := t.TempDir()
+	abs := filepath.Join(root, "photo.jpg")
+	makeJPEG(t, abs, 600, 400)
+	th, err := NewThumber(files.ResolveRoot(root))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p300, err := th.Get(context.Background(), abs, "/photo.jpg", 300, 300)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Same path, different requested size -> different cache entry.
+	p640, err := th.Get(context.Background(), abs, "/photo.jpg", 640, 640)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p300 == p640 {
+		t.Fatal("different sizes produced the same cache file")
+	}
+	// Cache hit for the original size still works.
+	again, err := th.Get(context.Background(), abs, "/photo.jpg", 300, 300)
+	if err != nil || again != p300 {
+		t.Fatalf("expected cache hit at %q, got %q err=%v", p300, again, err)
+	}
+	// Source updated -> old cache entry must not be served again.
+	future := time.Now().Add(2 * time.Second)
+	if err := os.Chtimes(abs, future, future); err != nil {
+		t.Fatal(err)
+	}
+	pNew, err := th.Get(context.Background(), abs, "/photo.jpg", 300, 300)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pNew == p300 {
+		t.Fatal("stale cache served after source mtime changed")
+	}
+}
+
 func TestThumbnailFromVideo(t *testing.T) {
 	if _, err := exec.LookPath("ffmpeg"); err != nil {
 		t.Skip("ffmpeg not available")
