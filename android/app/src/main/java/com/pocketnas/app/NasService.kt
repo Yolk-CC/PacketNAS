@@ -11,6 +11,7 @@ import android.os.IBinder
 import android.util.Log
 import mobile.Mobile
 import java.io.File
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Foreground service hosting the Go core (via the gomobile binding).
@@ -35,6 +36,11 @@ class NasService : Service() {
         @Volatile
         var serverAddress: String = ""
             private set
+
+        /** True while the Go core thread is starting up; a second
+         *  onStartCommand during this window must be ignored, otherwise the
+         *  isNotEmpty() check alone races into a concurrent double start. */
+        private val starting = AtomicBoolean(false)
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -45,8 +51,8 @@ class NasService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (serverAddress.isNotEmpty()) {
-            return START_STICKY // already running
+        if (serverAddress.isNotEmpty() || !starting.compareAndSet(false, true)) {
+            return START_STICKY // already running, or a start is in flight
         }
         val root = intent?.getStringExtra(EXTRA_ROOT) ?: DEFAULT_ROOT
         val password = intent?.getStringExtra(EXTRA_PASSWORD) ?: ""
@@ -61,6 +67,7 @@ class NasService : Service() {
             val onnxLib = File(applicationInfo.nativeLibraryDir, "libonnxruntime.so")
                 .takeIf { it.exists() }?.absolutePath ?: ""
             val addr = Mobile.start(root, password, port.toLong(), onnxLib)
+            starting.set(false)
             if (addr.isNullOrEmpty()) {
                 Log.e(TAG, "Go core failed to start")
                 stopSelf()

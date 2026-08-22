@@ -9,6 +9,7 @@ import com.pocketnas.client.data.ServerStore
 import com.pocketnas.client.data.api.ApiClient
 import com.pocketnas.client.data.model.ServerEntry
 import okhttp3.OkHttpClient
+import java.util.concurrent.TimeUnit
 
 /**
  * Application singletons. Provides the current [ServerEntry], an [ApiClient]
@@ -33,6 +34,26 @@ class App : Application(), ImageLoaderFactory {
     var apiClient: ApiClient? = null
         private set
 
+    /**
+     * Single shared OkHttpClient for the whole app (API, Coil, ExoPlayer).
+     * The auth interceptor injects X-Auth-Token from the current server, so
+     * switching servers never requires a new client (M15b: no per-server /
+     * per-player connection pools and dispatcher threads to retire).
+     */
+    val httpClient: OkHttpClient by lazy {
+        OkHttpClient.Builder()
+            .connectTimeout(8, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .addInterceptor { chain ->
+                chain.proceed(
+                    chain.request().newBuilder()
+                        .header("X-Auth-Token", serverStore.current()?.token.orEmpty())
+                        .build()
+                )
+            }
+            .build()
+    }
+
     override fun onCreate() {
         super.onCreate()
         serverStore = ServerStore(this)
@@ -51,20 +72,10 @@ class App : Application(), ImageLoaderFactory {
     private fun newApiClient(entry: ServerEntry): ApiClient =
         ApiClient(entry.baseUrl, tokenProvider = {
             serverStore.current()?.token.orEmpty()
-        })
+        }, client = httpClient)
 
     override fun newImageLoader(): ImageLoader = ImageLoader.Builder(this)
-        .okHttpClient {
-            OkHttpClient.Builder()
-                .addInterceptor { chain ->
-                    chain.proceed(
-                        chain.request().newBuilder()
-                            .header("X-Auth-Token", serverStore.current()?.token.orEmpty())
-                            .build()
-                    )
-                }
-                .build()
-        }
+        .callFactory { httpClient }
         .memoryCache { MemoryCache.Builder(this).maxSizePercent(0.25).build() }
         .diskCache {
             DiskCache.Builder()
