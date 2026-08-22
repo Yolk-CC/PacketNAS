@@ -3,65 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- M13 改版：本页已迁移，保留此 URL 做跳转以兼容旧书签与 APK WebView 入口 -->
+<meta http-equiv="refresh" content="0; url=library.html?tab=photos">
 <title>PocketNAS 相册</title>
-<link rel="stylesheet" href="style.css">
+<script>location.replace('library.html?tab=photos');</script>
 </head>
 <body>
-
-<div id="main-view" class="view gallery-view">
-  <header class="topbar">
-    <div class="brand">PocketNAS</div>
-    <nav class="tabs">
-      <a class="tab" href="index.html">文件</a>
-      <a class="tab active" href="gallery.html">相册</a>
-      <a class="tab" href="people.html">人物</a>
-      <a class="tab" href="settings.html">设置</a>
-    </nav>
-    <div class="actions">
-      <select id="type-filter" title="类型筛选">
-        <option value="all">全部</option>
-        <option value="image">图片</option>
-        <option value="video">视频</option>
-      </select>
-      <button id="btn-logout" class="btn subtle">退出</button>
-    </div>
-  </header>
-
-  <div class="scan-status"><span id="scan-text">加载中…</span></div>
-
-  <main id="gallery-area" class="gallery-area">
-    <div id="grid" class="grid"></div>
-    <p id="empty-hint" class="muted center hidden">暂无媒体文件</p>
-    <p id="loading-hint" class="muted center hidden">加载中…</p>
-    <p id="end-hint" class="muted center hidden">已加载全部</p>
-    <div id="scroll-sentinel"></div>
-  </main>
-</div>
-
-<!-- 灯箱 -->
-<div id="lightbox" class="lightbox hidden">
-  <div class="lb-topbar">
-    <div class="lb-info">
-      <div id="lb-name" class="lb-name"></div>
-      <div id="lb-time" class="lb-time"></div>
-    </div>
-    <select id="lb-quality" class="lb-quality hidden" title="清晰度"></select>
-    <div class="lb-pos" id="lb-pos"></div>
-    <button id="lb-close" class="lb-btn" title="关闭 (Esc)">&times;</button>
-  </div>
-  <button id="lb-prev" class="lb-btn lb-nav lb-prev" title="上一张 (←)">&lt;</button>
-  <div id="lb-stage" class="lb-stage">
-    <img id="lb-img" class="lb-media hidden" alt="">
-    <video id="lb-video" class="lb-media hidden" controls playsinline></video>
-    <video id="lb-live" class="lb-live hidden" loop playsinline></video>
-    <button id="lb-mute" class="lb-btn lb-mute hidden" title="静音/取消静音">&#128263;</button>
-    <div id="lb-overlay" class="lb-overlay hidden"><span id="lb-overlay-text">转码中…</span></div>
-  </div>
-  <button id="lb-next" class="lb-btn lb-nav lb-next" title="下一张 (→)">&gt;</button>
-</div>
-
-<div id="toast" class="toast hidden"></div>
-
-<script src="gallery.js"></script>
+<p>页面已迁移，正在跳转… <a href="library.html?tab=photos">如果没有自动跳转请点击</a></p>
 </body>
 </html>

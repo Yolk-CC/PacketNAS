@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<script>(function(){var t=localStorage.getItem('pocket-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;})();</script>
+<title>PocketNAS 文件</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<aside class="sidenav">
+  <a class="brand" href="overview.html">PocketNAS</a>
+  <a class="nav-item" href="overview.html"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>总览</a>
+  <a class="nav-item" href="files.html"><svg class="icon" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>文件</a>
+  <a class="nav-item" href="library.html"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-4.5-4.5L6 21"/></svg>图库</a>
+  <div class="nav-sub">
+    <a class="nav-item sub" href="library.html?tab=photos">照片</a>
+    <a class="nav-item sub" href="library.html?tab=people">人物</a>
+    <a class="nav-item sub" href="library.html?tab=faces">识别中心</a>
+  </div>
+  <a class="nav-item" href="shares.html"><svg class="icon" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"/></svg>共享</a>
+  <a class="nav-item" href="settings.html"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>设置</a>
+  <div class="nav-foot">
+    <button class="icon-btn" data-action="toggle-theme" aria-label="切换主题"></button>
+    <button class="icon-btn" data-action="logout" aria-label="退出登录"><svg class="icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></svg></button>
+  </div>
+</aside>
+
+<div class="mobile-topbar">
+  <div class="m-row">
+    <a class="brand" href="overview.html">PocketNAS</a>
+    <div>
+      <button class="icon-btn" data-action="toggle-theme" aria-label="切换主题"></button>
+      <button class="icon-btn" data-action="logout" aria-label="退出登录"><svg class="icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></svg></button>
+    </div>
+  </div>
+  <nav class="mobile-tabs">
+    <a class="m-tab" href="overview.html">总览</a>
+    <a class="m-tab" href="files.html">文件</a>
+    <a class="m-tab" href="library.html">图库</a>
+    <a class="m-tab" href="shares.html">共享</a>
+    <a class="m-tab" href="settings.html">设置</a>
+  </nav>
+</div>
+
+<div class="main-col">
+  <header class="page-head">
+    <div class="page-title-group"><h1>文件</h1></div>
+    <div class="page-actions">
+      <select id="type-filter" class="select" title="类型筛选" aria-label="类型筛选">
+        <option value="all">全部</option>
+        <option value="image">图片</option>
+        <option value="video">视频</option>
+      </select>
+      <button id="btn-mkdir" class="btn">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 11v6M9 14h6"/></svg>
+        新建文件夹
+      </button>
+      <button id="btn-upload" class="btn primary">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M16 16l-4-4-4 4M12 12v9"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+        上传
+      </button>
+    </div>
+  </header>
+
+  <main class="page-content">
+    <nav id="breadcrumb" class="card crumb-bar" aria-label="面包屑"></nav>
+
+    <div class="card list-area" id="list-area">
+      <div id="drop-hint" class="drop-hint hidden">松开以上传到当前目录</div>
+      <div class="table-wrap">
+        <table class="file-table">
+          <thead>
+            <tr><th>名称</th><th>大小</th><th class="col-time">修改时间</th><th class="ops-col">操作</th></tr>
+          </thead>
+          <tbody id="file-list"></tbody>
+        </table>
+      </div>
+      <div id="empty-hint" class="empty hidden">
+        <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+        <div class="empty-title">这个文件夹空空如也</div>
+        <div class="empty-sub">把文件拖到这里，或点击上方「上传」</div>
+      </div>
+      <div id="no-share-hint" class="empty hidden">
+        <svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"/></svg>
+        <div class="empty-title">还没有可访问的目录</div>
+        <div class="empty-sub">先去「共享」添加一个吧</div>
+        <a class="btn primary" href="shares.html">前往共享</a>
+      </div>
+    </div>
+
+    <footer class="statusbar"><span id="sysinfo"></span></footer>
+  </main>
+</div>
+
+<!-- 通用确认模态 -->
+<div id="confirm-modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-card narrow">
+    <h3 id="confirm-title">确认</h3>
+    <p class="modal-desc" id="confirm-desc"></p>
+    <div class="modal-actions">
+      <button id="confirm-cancel" class="btn ghost">取消</button>
+      <button id="confirm-ok" class="btn danger">删除</button>
+    </div>
+  </div>
+</div>
+
+<!-- 输入模态（新建文件夹） -->
+<div id="prompt-modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-card narrow">
+    <h3 id="prompt-title">新建文件夹</h3>
+    <input type="text" id="prompt-input" class="input" placeholder="文件夹名称">
+    <div class="modal-actions">
+      <button id="prompt-cancel" class="btn ghost">取消</button>
+      <button id="prompt-ok" class="btn primary">创建</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-stack"></div>
+<input type="file" id="file-input" multiple hidden>
+
+<script src="theme.js"></script>
+<script src="files.js"></script>
+</body>
+</html>

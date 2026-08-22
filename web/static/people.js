@@ -5,19 +5,15 @@
 
   var TOKEN_KEY = 'pocketnas_token';
   var $ = function (id) { return document.getElementById(id); };
-  var toastEl = $('toast');
 
   var state = {
     persons: [],
     current: null // 当前查看的人物 id
   };
 
-  function toast(msg, isError) {
-    toastEl.textContent = msg;
-    toastEl.className = 'toast' + (isError ? ' error' : '');
-    clearTimeout(toastEl._timer);
-    toastEl._timer = setTimeout(function () { toastEl.classList.add('hidden'); }, 3500);
-  }
+  var toast = window.PocketToast ? function (msg, isError) {
+    window.PocketToast(msg, isError ? 'error' : 'info');
+  } : function () {};
 
   function getToken() { return localStorage.getItem(TOKEN_KEY) || ''; }
 
@@ -27,7 +23,7 @@
     options.headers['X-Auth-Token'] = getToken();
     return fetch(url, options).then(function (res) {
       if (res.status === 401) {
-        location.href = 'index.html';
+        location.href = 'overview.html';
         throw new Error('unauthorized');
       }
       return res.json().then(function (body) {
@@ -51,7 +47,7 @@
     api('/api/faces/status').then(function (st) {
       var q = st.queue || {};
       if (!st.available) {
-        $('status-text').textContent = '人脸识别不可用：' + (st.reason || '') + '（到设置页下载模型）';
+        $('status-text').textContent = '人脸识别不可用：' + (st.reason || '') + '（到「识别中心」下载模型）';
       } else if (q.scanning || q.pending > 0) {
         $('status-text').textContent = '识别中… 已完成 ' + (q.done || 0) + '，待处理 ' + (q.pending || 0);
       } else {
@@ -67,9 +63,9 @@
     api('/api/faces/persons').then(function (list) {
       state.persons = list || [];
       renderPeople();
-    }).catch(function (e) {
+    }).catch(function () {
+      // 引擎不可用/加载失败：展示默认空态（含「前往识别中心」引导）
       $('people-empty').classList.remove('hidden');
-      $('people-empty').textContent = '人物加载失败：' + e.message;
     });
   }
 
@@ -204,11 +200,6 @@
       refreshStatus();
     }).catch(function (e) { toast('无法开始识别：' + e.message, true); });
   });
-  $('btn-logout').addEventListener('click', function () {
-    localStorage.removeItem(TOKEN_KEY);
-    location.href = 'index.html';
-  });
-
   /* ---------- 启动 ---------- */
   refreshStatus();
   setInterval(refreshStatus, 3000);

@@ -3,51 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- M13 改版：本页已迁移，保留此 URL 做跳转以兼容旧书签与 APK WebView 入口 -->
+<meta http-equiv="refresh" content="0; url=library.html?tab=people">
 <title>PocketNAS 人物</title>
-<link rel="stylesheet" href="style.css">
+<script>location.replace('library.html?tab=people');</script>
 </head>
 <body>
-
-<div id="main-view" class="view gallery-view">
-  <header class="topbar">
-    <div class="brand">PocketNAS</div>
-    <nav class="tabs">
-      <a class="tab" href="index.html">文件</a>
-      <a class="tab" href="gallery.html">相册</a>
-      <a class="tab active" href="people.html">人物</a>
-      <a class="tab" href="settings.html">设置</a>
-    </nav>
-    <div class="actions">
-      <button id="btn-rescan" class="btn">重新识别</button>
-      <button id="btn-logout" class="btn subtle">退出</button>
-    </div>
-  </header>
-
-  <div class="scan-status"><span id="status-text">加载中…</span></div>
-
-  <!-- 人物网格视图 -->
-  <main id="people-view" class="gallery-area">
-    <div id="people-grid" class="grid"></div>
-    <p id="people-empty" class="muted center hidden">尚无可识别人物。请先在设置页下载模型并开始识别。</p>
-  </main>
-
-  <!-- 人物详情视图 -->
-  <main id="person-view" class="gallery-area hidden">
-    <div class="person-header">
-      <button id="btn-back" class="btn subtle">← 返回</button>
-      <h2 id="person-name">未命名</h2>
-      <input type="text" id="person-name-input" placeholder="输入名字" class="hidden">
-      <button id="btn-rename" class="btn">命名</button>
-      <select id="merge-target" title="合并到其他人物"></select>
-      <button id="btn-merge" class="btn">合并到所选</button>
-    </div>
-    <div id="photo-grid" class="grid"></div>
-    <p id="photo-empty" class="muted center hidden">该人物暂时没有可显示的照片</p>
-  </main>
-</div>
-
-<div id="toast" class="toast hidden"></div>
-
-<script src="people.js"></script>
+<p>页面已迁移，正在跳转… <a href="library.html?tab=people">如果没有自动跳转请点击</a></p>
 </body>
 </html>

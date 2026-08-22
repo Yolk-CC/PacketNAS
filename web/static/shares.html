@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<script>(function(){var t=localStorage.getItem('pocket-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t;})();</script>
+<title>PocketNAS 共享</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<aside class="sidenav">
+  <a class="brand" href="overview.html">PocketNAS</a>
+  <a class="nav-item" href="overview.html"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>总览</a>
+  <a class="nav-item" href="files.html"><svg class="icon" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>文件</a>
+  <a class="nav-item" href="library.html"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-4.5-4.5L6 21"/></svg>图库</a>
+  <div class="nav-sub">
+    <a class="nav-item sub" href="library.html?tab=photos">照片</a>
+    <a class="nav-item sub" href="library.html?tab=people">人物</a>
+    <a class="nav-item sub" href="library.html?tab=faces">识别中心</a>
+  </div>
+  <a class="nav-item" href="shares.html"><svg class="icon" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"/></svg>共享</a>
+  <a class="nav-item" href="settings.html"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>设置</a>
+  <div class="nav-foot">
+    <button class="icon-btn" data-action="toggle-theme" aria-label="切换主题"></button>
+    <button class="icon-btn" data-action="logout" aria-label="退出登录"><svg class="icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></svg></button>
+  </div>
+</aside>
+
+<div class="mobile-topbar">
+  <div class="m-row">
+    <a class="brand" href="overview.html">PocketNAS</a>
+    <div>
+      <button class="icon-btn" data-action="toggle-theme" aria-label="切换主题"></button>
+      <button class="icon-btn" data-action="logout" aria-label="退出登录"><svg class="icon" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5M21 12H9"/></svg></button>
+    </div>
+  </div>
+  <nav class="mobile-tabs">
+    <a class="m-tab" href="overview.html">总览</a>
+    <a class="m-tab" href="files.html">文件</a>
+    <a class="m-tab" href="library.html">图库</a>
+    <a class="m-tab" href="shares.html">共享</a>
+    <a class="m-tab" href="settings.html">设置</a>
+  </nav>
+</div>
+
+<div class="main-col">
+  <header class="page-head">
+    <div class="page-title-group">
+      <h1>共享</h1>
+      <p class="page-desc">客户端与管理台可访问的目录</p>
+    </div>
+    <div class="page-actions">
+      <button id="btn-open-add" class="btn primary">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+        添加共享
+      </button>
+    </div>
+  </header>
+
+  <main class="page-content">
+    <div class="content-narrow" style="margin:0 auto">
+      <div id="legacy-hint" class="alert-bar warning hidden">
+        <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+        当前未配置共享，客户端可访问整个根目录，存在风险
+      </div>
+
+      <section class="card">
+        <div class="table-wrap">
+          <table class="table shares-table">
+            <thead>
+              <tr><th>名称</th><th>路径</th><th class="ops-col">操作</th></tr>
+            </thead>
+            <tbody id="share-list"></tbody>
+          </table>
+        </div>
+        <div id="empty-hint" class="empty hidden">
+          <svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 10.5 6.8-4M8.6 13.5l6.8 4"/></svg>
+          <div class="empty-title">还没有共享目录</div>
+          <div class="empty-sub">添加一个目录，让客户端可以访问里面的文件</div>
+          <button class="btn primary" id="btn-empty-add">添加共享</button>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<!-- 移动端悬浮添加按钮 -->
+<button class="fab" id="fab-add" aria-label="添加共享">
+  <svg class="icon" viewBox="0 0 24 24" style="width:24px;height:24px"><path d="M12 5v14M5 12h14"/></svg>
+</button>
+
+<!-- 添加共享模态 -->
+<div id="add-modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-card">
+    <h3>添加共享</h3>
+    <div class="field-row">
+      <label for="share-name">共享名称</label>
+      <input type="text" id="share-name" class="input" placeholder="如：照片">
+    </div>
+    <div class="field-row">
+      <label for="share-path">目录路径</label>
+      <div class="form-row">
+        <input type="text" id="share-path" class="input mono" placeholder="尚未选择" readonly>
+        <button id="btn-browse" class="btn">选择目录…</button>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button id="add-cancel" class="btn ghost">取消</button>
+      <button id="btn-add" class="btn primary" disabled>添加</button>
+    </div>
+  </div>
+</div>
+
+<!-- 移除共享确认模态 -->
+<div id="del-modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-card narrow">
+    <h3>移除共享</h3>
+    <p class="modal-desc" id="del-desc"></p>
+    <div class="modal-actions">
+      <button id="del-cancel" class="btn ghost">取消</button>
+      <button id="del-ok" class="btn danger">移除</button>
+    </div>
+  </div>
+</div>
+
+<!-- 目录选择器模态框 -->
+<div id="dir-modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-card">
+    <h3>选择目录</h3>
+    <div class="modal-path">
+      <button id="btn-up" class="btn ghost sm">← 返回上级</button>
+      <span id="browse-path" class="browse-path">/</span>
+    </div>
+    <ul id="dir-list" class="dir-list"></ul>
+    <p id="dir-empty" class="muted center hidden">此目录下没有子目录</p>
+    <div class="modal-actions">
+      <button id="btn-cancel" class="btn ghost">取消</button>
+      <button id="btn-choose" class="btn primary">选择当前目录</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-stack"></div>
+
+<script src="theme.js"></script>
+<script src="shares.js"></script>
+</body>
+</html>
