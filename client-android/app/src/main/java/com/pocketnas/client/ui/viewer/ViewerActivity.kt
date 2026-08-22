@@ -19,13 +19,12 @@ import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.pocketnas.client.App
 import com.pocketnas.client.R
 import com.pocketnas.client.data.model.MediaItem
-import com.pocketnas.client.player.PlayerManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
+import java.io.OutputStream
 import java.util.Date
 
 /** Simple in-memory handoff of the current timeline list to the viewer. */
@@ -49,8 +48,6 @@ class ViewerActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_viewer)
 
-        PlayerManager.tokenProvider = { App.of(this).server?.token.orEmpty() }
-
         pager = findViewById(R.id.pager)
         titleBar = findViewById(R.id.viewer_top_bar)
         bottomBar = findViewById(R.id.viewer_bottom_bar)
@@ -72,6 +69,13 @@ class ViewerActivity : AppCompatActivity() {
         findViewById<ImageButton>(R.id.btn_share).setOnClickListener { current()?.let(::share) }
         findViewById<ImageButton>(R.id.btn_download).setOnClickListener { current()?.let(::download) }
         findViewById<ImageButton>(R.id.btn_delete).setOnClickListener { current()?.let(::confirmDelete) }
+    }
+
+    override fun onDestroy() {
+        // onViewRecycled is not guaranteed during teardown; release every
+        // still-attached page's ExoPlayer here (M15b).
+        if (::adapter.isInitialized) adapter.releaseAll()
+        super.onDestroy()
     }
 
     private fun current(): MediaItem? = items.getOrNull(pager.currentItem)
@@ -135,7 +139,6 @@ class ViewerActivity : AppCompatActivity() {
     /** Downloads to the device gallery via MediaStore (SPEC-M9 §4). */
     private fun download(item: MediaItem) = lifecycleScope.launch {
         try {
-            val bytes = fetch(item)
             val collection = if (android.os.Build.VERSION.SDK_INT >= 29) {
                 if (item.isVideo) {
                     MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
@@ -156,7 +159,13 @@ class ViewerActivity : AppCompatActivity() {
             }
             val uri = contentResolver.insert(collection, values)
                 ?: error("MediaStore insert failed")
-            contentResolver.openOutputStream(uri)?.use { it.write(bytes) }
+            try {
+                contentResolver.openOutputStream(uri)?.use { out -> streamMedia(item, out) }
+                    ?: error("MediaStore openOutputStream failed")
+            } catch (e: Exception) {
+                contentResolver.delete(uri, null, null)
+                throw e
+            }
             toast(R.string.download_done)
         } catch (e: Exception) {
             toast(R.string.error_download)
@@ -181,23 +190,26 @@ class ViewerActivity : AppCompatActivity() {
             .show()
     }
 
-    private suspend fun fetch(item: MediaItem): ByteArray = withContext(Dispatchers.IO) {
+    /**
+     * Streams /api/media/file/<path> into [out] (M15b: no whole-file byte
+     * array in memory, same streaming approach as DownloadHelper). The auth
+     * header is injected by the shared client's interceptor.
+     */
+    private suspend fun streamMedia(item: MediaItem, out: OutputStream) = withContext(Dispatchers.IO) {
         val app = App.of(this@ViewerActivity)
         val api = app.apiClient ?: error("no server")
         val url = api.mediaUrl("/api/media/file", item.path)
-        val req = Request.Builder().url(url)
-            .header("X-Auth-Token", app.server?.token.orEmpty())
-            .build()
-        OkHttpClient().newCall(req).execute().use { resp ->
+        val req = Request.Builder().url(url).build()
+        app.httpClient.newCall(req).execute().use { resp ->
             if (!resp.isSuccessful) error("HTTP ${resp.code}")
-            resp.body?.bytes() ?: ByteArray(0)
+            resp.body?.byteStream()?.use { it.copyTo(out) } ?: error("empty body")
         }
     }
 
     private suspend fun cacheMedia(item: MediaItem): File = withContext(Dispatchers.IO) {
         val dir = File(cacheDir, "share").apply { mkdirs() }
         val file = File(dir, item.name)
-        file.writeBytes(fetch(item))
+        file.outputStream().use { streamMedia(item, it) }
         file
     }
 

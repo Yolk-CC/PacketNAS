@@ -10,10 +10,13 @@ import androidx.media3.ui.PlayerView
 import androidx.recyclerview.widget.RecyclerView
 import coil.load
 import com.github.chrisbanes.photoview.PhotoView
+import com.pocketnas.client.App
 import com.pocketnas.client.R
 import com.pocketnas.client.data.api.ApiClient
 import com.pocketnas.client.data.model.MediaItem
 import com.pocketnas.client.player.PlayerManager
+import com.pocketnas.client.util.PendingDelayedAction
+import okhttp3.OkHttpClient
 
 /**
  * ViewPager2 pages: PhotoView for images (double-tap / pinch zoom), an
@@ -27,6 +30,11 @@ class ViewerPagerAdapter(
 
     private val items = mutableListOf<MediaItem>()
 
+    /** Holders still attached to pages; onViewRecycled is not guaranteed on
+     *  Activity teardown, so ViewerActivity.onDestroy releases them via
+     *  [releaseAll]. */
+    private val activeHolders = mutableSetOf<PageVH>()
+
     @SuppressLint("NotifyDataSetChanged")
     fun submit(list: List<MediaItem>) {
         items.clear()
@@ -38,7 +46,7 @@ class ViewerPagerAdapter(
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PageVH {
         val view = LayoutInflater.from(parent.context).inflate(R.layout.item_viewer_page, parent, false)
-        return PageVH(view)
+        return PageVH(view).also { activeHolders += it }
     }
 
     override fun onBindViewHolder(holder: PageVH, position: Int) {
@@ -46,8 +54,18 @@ class ViewerPagerAdapter(
     }
 
     override fun onViewRecycled(holder: PageVH) {
+        holder.cancelPendingLivePhoto()
         holder.releasePlayer()
+        activeHolders -= holder
         super.onViewRecycled(holder)
+    }
+
+    /** Releases every still-attached page's player (Activity onDestroy). */
+    fun releaseAll() {
+        activeHolders.forEach {
+            it.cancelPendingLivePhoto()
+            it.releasePlayer()
+        }
     }
 
     inner class PageVH(view: View) : RecyclerView.ViewHolder(view) {
@@ -56,9 +74,17 @@ class ViewerPagerAdapter(
         private var player: ExoPlayer? = null
         private var livePlaying = false
 
+        /** 400ms long-press trigger; cancelled precisely, never via
+         *  removeCallbacksAndMessages(null) which wipes unrelated callbacks. */
+        private val livePhotoTrigger = PendingDelayedAction(
+            postDelayed = { r, delay -> itemView.postDelayed(r, delay) },
+            removeCallbacks = { r -> itemView.removeCallbacks(r) },
+        )
+
         @SuppressLint("ClickableViewAccessibility")
         fun bind(item: MediaItem) {
             val client = api() ?: return
+            cancelPendingLivePhoto()
             releasePlayer()
             playerView.visibility = View.GONE
             photo.visibility = View.VISIBLE
@@ -68,7 +94,7 @@ class ViewerPagerAdapter(
                 // Videos play directly via /api/media/file/<path> (Range OK).
                 playerView.visibility = View.VISIBLE
                 photo.visibility = View.GONE
-                val p = PlayerManager.create(itemView.context).also { player = it }
+                val p = PlayerManager.create(itemView.context, httpClient()).also { player = it }
                 playerView.player = p
                 PlayerManager.play(p, client.mediaUrl("/api/media/file", item.path))
                 playerView.setOnClickListener { onToggleUi() }
@@ -95,16 +121,16 @@ class ViewerPagerAdapter(
         private fun attachLivePhotoGesture(item: MediaItem) {
             photo.setOnTouchListener { _, event ->
                 when (event.actionMasked) {
-                    MotionEvent.ACTION_DOWN -> itemView.postDelayed({
+                    MotionEvent.ACTION_DOWN -> livePhotoTrigger.schedule(LIVE_PRESS_DELAY_MS) {
                         livePlaying = true
                         photo.visibility = View.VISIBLE
                         playerView.visibility = View.VISIBLE
-                        val p = PlayerManager.create(itemView.context).also { player = it }
+                        val p = PlayerManager.create(itemView.context, httpClient()).also { player = it }
                         playerView.player = p
                         api()?.let { PlayerManager.play(p, it.mediaUrl("/api/livephoto", item.path)) }
-                    }, 400)
+                    }
                     MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                        itemView.handler?.removeCallbacksAndMessages(null)
+                        livePhotoTrigger.cancel()
                         if (livePlaying) {
                             livePlaying = false
                             playerView.visibility = View.GONE
@@ -116,10 +142,19 @@ class ViewerPagerAdapter(
             }
         }
 
+        /** Cancels a still-pending long-press trigger (bind/recycle/destroy). */
+        fun cancelPendingLivePhoto() = livePhotoTrigger.cancel()
+
         fun releasePlayer() {
             playerView.player = null
             player?.release()
             player = null
         }
+
+        private fun httpClient(): OkHttpClient = App.of(itemView.context).httpClient
+    }
+
+    private companion object {
+        const val LIVE_PRESS_DELAY_MS = 400L
     }
 }
