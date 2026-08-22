@@ -8,6 +8,7 @@ import (
 	"errors"
 	"image"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -53,7 +54,11 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 func (h *Handler) available(w http.ResponseWriter) bool {
 	ok, reason := h.svc.Available()
 	if !ok {
-		writeError(w, http.StatusServiceUnavailable, "faces_unavailable", reason)
+		// Never leak internal paths to clients; full reason goes to the log.
+		if reason != "" {
+			log.Printf("faces: unavailable: %s", reason)
+		}
+		writeError(w, http.StatusServiceUnavailable, "faces_unavailable", h.svc.PublicReason())
 		return false
 	}
 	return true
@@ -89,7 +94,7 @@ func (h *Handler) Status(w http.ResponseWriter, r *http.Request) {
 		"profiles":   BuiltinProfiles,
 	}
 	if reason != "" {
-		resp["reason"] = reason
+		resp["reason"] = h.svc.PublicReason()
 	}
 	writeJSON(w, http.StatusOK, resp)
 }
@@ -125,10 +130,8 @@ func (h *Handler) SetModels(w http.ResponseWriter, r *http.Request) {
 		}
 		cfg.Profile = req.Profile
 		// Profile switch resets explicit file overrides to the profile's.
-		p := BuiltinProfiles[req.Profile]
 		cfg.DetModel = ""
 		cfg.RecModel = ""
-		_ = p
 	}
 	if req.DetModel != "" {
 		cfg.DetModel = req.DetModel
@@ -136,7 +139,7 @@ func (h *Handler) SetModels(w http.ResponseWriter, r *http.Request) {
 	if req.RecModel != "" {
 		cfg.RecModel = req.RecModel
 	}
-	if req.LibPath != "" || r.Body != nil {
+	if req.LibPath != "" {
 		cfg.LibPath = req.LibPath
 	}
 	if err := h.svc.setCfg(cfg); err != nil {

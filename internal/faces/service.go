@@ -227,6 +227,22 @@ func (s *Service) Available() (bool, string) {
 	return s.engine != nil, s.reason
 }
 
+// PublicReason returns the unavailability reason safe for client
+// responses: absolute filesystem paths are redacted (the full reason
+// should only go to the server log).
+func (s *Service) PublicReason() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	r := s.reason
+	// Longest paths first so a nested dir is redacted before its parent.
+	for _, p := range []string{s.modelsDir, s.onnxLibPath, s.root} {
+		if p != "" && p != "/" && p != "." {
+			r = strings.ReplaceAll(r, p, "<path>")
+		}
+	}
+	return r
+}
+
 // SetEngine injects an engine (tests / future backends).
 func (s *Service) SetEngine(e Engine, reason string) {
 	s.mu.Lock()
@@ -347,13 +363,12 @@ func (s *Service) scanOnce() {
 				_ = s.Store().PutHash(m.Path, m.ModifiedTime, hash)
 				return // undecodable: don't retry every scan
 			}
-			eng, _ := s.Available()
-			if !eng {
-				return
-			}
 			s.mu.Lock()
 			engine := s.engine
 			s.mu.Unlock()
+			if engine == nil {
+				return // engine went away between scans
+			}
 			faces, err := engine.Detect(img)
 			if err != nil {
 				return // transient: retried next scan

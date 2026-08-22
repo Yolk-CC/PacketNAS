@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 
 	"pocket-nas/internal/media"
@@ -313,4 +314,73 @@ func TestAPIEndToEnd(t *testing.T) {
 
 func itoa(v int64) string {
 	return strconv.FormatInt(v, 10)
+}
+
+func TestSetModelsKeepsLibPathWhenEmpty(t *testing.T) {
+	root := t.TempDir()
+	src := &fakeSource{root: root}
+	cfg := Config{LibPath: "/custom/libonnxruntime.so"}
+	var saved Config
+	svc, err := NewService(root, src,
+		func() Config { return cfg },
+		func(c Config) error { saved = c; return nil }, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer svc.Close()
+	h := NewHandler(svc)
+
+	// A PUT without libPath must not wipe the configured library path.
+	rec := httptest.NewRecorder()
+	h.SetModels(rec, httptest.NewRequest("PUT", "/api/faces/models", bytes.NewReader([]byte(`{"profile":"buffalo_s"}`))))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("SetModels: %d body=%s", rec.Code, rec.Body.String())
+	}
+	if saved.LibPath != "/custom/libonnxruntime.so" {
+		t.Fatalf("LibPath overwritten: %q", saved.LibPath)
+	}
+
+	// An explicit libPath is applied.
+	rec = httptest.NewRecorder()
+	h.SetModels(rec, httptest.NewRequest("PUT", "/api/faces/models", bytes.NewReader([]byte(`{"libPath":"/other/lib.so"}`))))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("SetModels: %d body=%s", rec.Code, rec.Body.String())
+	}
+	if saved.LibPath != "/other/lib.so" {
+		t.Fatalf("LibPath not applied: %q", saved.LibPath)
+	}
+}
+
+func TestUnavailableReasonRedactsPaths(t *testing.T) {
+	root := t.TempDir()
+	src := &fakeSource{root: root}
+	cfg := Config{}
+	svc, err := NewService(root, src, func() Config { return cfg }, func(Config) error { return nil }, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer svc.Close()
+
+	// Simulate an engine failure whose reason embeds absolute paths.
+	svc.SetEngine(nil, "model file det.onnx not found in "+filepath.Join(root, ".pocketnas", "models"))
+
+	if r := svc.PublicReason(); strings.Contains(r, root) {
+		t.Fatalf("PublicReason leaks path: %q", r)
+	}
+
+	h := NewHandler(svc)
+	rec := httptest.NewRecorder()
+	h.Scan(rec, httptest.NewRequest("POST", "/api/faces/scan", nil))
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("scan: got %d, want 503", rec.Code)
+	}
+	if strings.Contains(rec.Body.String(), root) {
+		t.Fatalf("503 body leaks absolute path: %s", rec.Body.String())
+	}
+
+	rec = httptest.NewRecorder()
+	h.Status(rec, httptest.NewRequest("GET", "/api/faces/status", nil))
+	if strings.Contains(rec.Body.String(), root) {
+		t.Fatalf("status body leaks absolute path: %s", rec.Body.String())
+	}
 }

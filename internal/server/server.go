@@ -307,7 +307,8 @@ func newRouter(cfg config.Config, svc *files.Service) (http.Handler, func()) {
 		return func(w http.ResponseWriter, r *http.Request) {
 			mh, err := getMedia()
 			if err != nil {
-				writeAuthError(w, http.StatusInternalServerError, "INTERNAL", "media index unavailable: "+err.Error())
+				log.Printf("media: init failed: %v", err)
+				writeAuthError(w, http.StatusInternalServerError, "INTERNAL", "media index unavailable")
 				return
 			}
 			fn(mh, w, r)
@@ -381,7 +382,8 @@ func newRouter(cfg config.Config, svc *files.Service) (http.Handler, func()) {
 				return func(w http.ResponseWriter, r *http.Request) {
 					fs, err := getFaces()
 					if err != nil {
-						writeAuthError(w, http.StatusServiceUnavailable, "faces_unavailable", "faces unavailable: "+err.Error())
+						log.Printf("faces: init failed: %v", err)
+						writeAuthError(w, http.StatusServiceUnavailable, "faces_unavailable", "faces service unavailable")
 						return
 					}
 					fn(faces.NewHandler(fs), w, r)

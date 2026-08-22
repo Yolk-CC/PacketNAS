@@ -130,6 +130,38 @@ func TestMove(t *testing.T) {
 	}
 }
 
+func TestMoveIntoOwnSubdir(t *testing.T) {
+	svc, root := newTestService(t)
+	if err := svc.Mkdir("/", "dir"); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.Mkdir("/dir", "sub"); err != nil {
+		t.Fatal(err)
+	}
+	// Moving a directory into its own subdirectory must be rejected.
+	if err := svc.Move([]string{"/dir"}, "/dir/sub"); !errors.Is(err, ErrBadRequest) {
+		t.Fatalf("move into own subdir = %v, want ErrBadRequest", err)
+	}
+	// Moving a directory onto itself must be rejected.
+	if err := svc.Move([]string{"/dir"}, "/dir"); !errors.Is(err, ErrBadRequest) {
+		t.Fatalf("move into itself = %v, want ErrBadRequest", err)
+	}
+	// The tree must be untouched.
+	if _, err := os.Stat(filepath.Join(root, "dir", "sub")); err != nil {
+		t.Fatal("dir/sub should still exist")
+	}
+	// Moving a file whose destination dir merely shares a name prefix is fine.
+	if err := os.WriteFile(filepath.Join(root, "dir", "f.txt"), []byte("f"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.Move([]string{"/dir/f.txt"}, "/dir/sub"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(root, "dir", "sub", "f.txt")); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestListSortingAndFilter(t *testing.T) {
 	svc, root := newTestService(t)
 	must := func(p string, data string) {
