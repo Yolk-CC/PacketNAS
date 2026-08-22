@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"runtime"
 
@@ -58,7 +59,10 @@ func writeServiceError(w http.ResponseWriter, err error) {
 	case errors.Is(err, ErrBadRequest):
 		writeError(w, http.StatusBadRequest, "BAD_REQUEST", err.Error())
 	default:
-		writeError(w, http.StatusInternalServerError, "INTERNAL", err.Error())
+		// Unexpected errors may carry absolute paths; log them and answer
+		// with a generic message instead.
+		log.Printf("files: internal error: %v", err)
+		writeError(w, http.StatusInternalServerError, "INTERNAL", "internal server error")
 	}
 }
 
