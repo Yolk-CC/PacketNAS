@@ -21,6 +21,12 @@ android {
         }
     }
 
+    // 人脸识别需要真实文件路径（purego dlopen）：确保 libonnxruntime.so
+    // 安装时被解压到 nativeLibraryDir，而不是直接映射在 APK 内
+    packagingOptions {
+        jniLibs.useLegacyPackaging = true
+    }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
