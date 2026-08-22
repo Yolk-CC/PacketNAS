@@ -175,4 +175,116 @@ class ApiClientTest {
         val req = server.takeRequest()
         assertEquals("/api/download/a/b.txt", req.path)
     }
+
+    // ---- SPEC-M12: faces 端点契约（以 internal/faces/handlers.go 为准） ----
+
+    @Test
+    fun `facesStatus parses availability and reason`() = runBlocking {
+        server.enqueue(
+            MockResponse().setBody(
+                """{"available":false,"reason":"models not downloaded",
+                "model":{"profile":"buffalo_s","det":"det.onnx","rec":"rec.onnx","dims":512},
+                "queue":{"pending":0,"done":0,"scanning":false},
+                "persons":0,"facesTotal":0,"models":[],"download":{},"profiles":{}}"""
+            )
+        )
+        val status = api.facesStatus()
+        assertFalse(status.available)
+        assertEquals("models not downloaded", status.reason)
+        val req = server.takeRequest()
+        assertEquals("GET", req.method)
+        assertEquals("/api/faces/status", req.path)
+        assertEquals("tok123", req.getHeader("X-Auth-Token"))
+    }
+
+    @Test
+    fun `persons parses unnamed person with omitted name field`() = runBlocking {
+        // personJSON 的 name 为 omitempty：未命名时字段缺失
+        server.enqueue(
+            MockResponse().setBody(
+                """[{"id":1,"faceCount":5,"coverUrl":"/api/faces/crop/9"},
+                {"id":2,"name":"张三","faceCount":2,"coverUrl":""}]"""
+            )
+        )
+        val persons = api.persons()
+        assertEquals(2, persons.size)
+        assertEquals("", persons[0].name)
+        assertEquals("人物 1", persons[0].displayName)
+        assertEquals("/api/faces/crop/9", persons[0].coverUrl)
+        assertEquals("张三", persons[1].displayName)
+        assertEquals(5, persons[0].faceCount)
+        val req = server.takeRequest()
+        assertEquals("GET", req.method)
+        assertEquals("/api/faces/persons", req.path)
+    }
+
+    @Test
+    fun `personPhotos parses gallery-format items`() = runBlocking {
+        server.enqueue(
+            MockResponse().setBody(
+                """{"total":1,"items":[{"path":"/DCIM/a.jpg","name":"a.jpg",
+                "mimeType":"image/jpeg","takenTime":1723692622,"width":4000,"height":3000,
+                "thumbUrl":"/api/thumb/DCIM/a.jpg?w=300&h=300",
+                "isLivePhoto":false,"liveType":""}],
+                "person":{"id":7,"name":"张三","coverFaceId":3,"createdAt":1723692622}}"""
+            )
+        )
+        val resp = api.personPhotos(7)
+        assertEquals(1, resp.total)
+        assertEquals("/DCIM/a.jpg", resp.items[0].path)
+        assertTrue(resp.items[0].isImage)
+        val req = server.takeRequest()
+        assertEquals("GET", req.method)
+        assertEquals("/api/faces/persons/7/photos", req.path)
+    }
+
+    @Test
+    fun `renamePerson puts name and parses refreshed persons`() = runBlocking {
+        server.enqueue(
+            MockResponse().setBody(
+                """[{"id":1,"name":"李四","faceCount":5,"coverUrl":"/api/faces/crop/9"}]"""
+            )
+        )
+        val persons = api.renamePerson(1, "李四")
+        assertEquals("李四", persons[0].name)
+        val req = server.takeRequest()
+        assertEquals("PUT", req.method)
+        assertEquals("/api/faces/persons/1", req.path)
+        val body = req.body.readUtf8()
+        assertTrue(body.contains("\"name\":\"李四\""))
+    }
+
+    @Test
+    fun `mergePersons posts from and to`() = runBlocking {
+        server.enqueue(
+            MockResponse().setBody(
+                """[{"id":1,"name":"王五","faceCount":8,"coverUrl":"/api/faces/crop/9"}]"""
+            )
+        )
+        val persons = api.mergePersons(from = 2, to = 1)
+        assertEquals(1, persons.size)
+        assertEquals(8, persons[0].faceCount)
+        val req = server.takeRequest()
+        assertEquals("POST", req.method)
+        assertEquals("/api/faces/persons/merge", req.path)
+        val body = req.body.readUtf8()
+        assertTrue(body.contains("\"from\":2"))
+        assertTrue(body.contains("\"to\":1"))
+    }
+
+    @Test
+    fun `persons 503 raises ApiException with faces_unavailable body`() = runBlocking {
+        server.enqueue(
+            MockResponse().setResponseCode(503).setBody(
+                """{"error":{"code":"faces_unavailable","message":"engine not ready"}}"""
+            )
+        )
+        try {
+            api.persons()
+            error("expected ApiException")
+        } catch (e: ApiException) {
+            assertEquals(503, e.httpCode)
+            assertTrue(e.message!!.contains("faces_unavailable"))
+        }
+    }
 }

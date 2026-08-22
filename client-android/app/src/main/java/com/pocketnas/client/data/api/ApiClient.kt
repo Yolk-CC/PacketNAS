@@ -1,11 +1,16 @@
 package com.pocketnas.client.data.api
 
 import com.pocketnas.client.data.model.DeleteRequest
+import com.pocketnas.client.data.model.FacesStatus
 import com.pocketnas.client.data.model.FileInfo
 import com.pocketnas.client.data.model.GalleryResponse
 import com.pocketnas.client.data.model.LoginRequest
 import com.pocketnas.client.data.model.LoginResponse
+import com.pocketnas.client.data.model.MergePersonsRequest
 import com.pocketnas.client.data.model.MkdirRequest
+import com.pocketnas.client.data.model.Person
+import com.pocketnas.client.data.model.PersonPhotosResponse
+import com.pocketnas.client.data.model.RenamePersonRequest
 import com.pocketnas.client.data.model.RenameRequest
 import com.pocketnas.client.data.model.ScanStatus
 import com.pocketnas.client.data.model.UploadResponse
@@ -44,6 +49,17 @@ interface PocketNasApi {
 
     /** Streams GET /api/download/<path>[?archive=zip] into [out]. */
     suspend fun downloadTo(path: String, zip: Boolean, out: OutputStream)
+
+    // SPEC-M12: faces endpoints (internal/faces/handlers.go).
+    suspend fun facesStatus(): FacesStatus
+    suspend fun persons(): List<Person>
+    suspend fun personPhotos(id: Long): PersonPhotosResponse
+
+    /** PUT /api/faces/persons/<id> {name}；服务端返回最新 persons 列表。 */
+    suspend fun renamePerson(id: Long, name: String): List<Person>
+
+    /** POST /api/faces/persons/merge {from,to}：from 合并进 to，返回最新 persons。 */
+    suspend fun mergePersons(from: Long, to: Long): List<Person>
 }
 
 class ApiException(val httpCode: Int, message: String) : IOException(message) {
@@ -145,6 +161,27 @@ class ApiClient(
                     ?: throw ApiException(resp.code, "empty body")
             }
         }
+    }
+
+    override suspend fun facesStatus(): FacesStatus = get("/api/faces/status")
+
+    override suspend fun persons(): List<Person> = get("/api/faces/persons")
+
+    override suspend fun personPhotos(id: Long): PersonPhotosResponse =
+        get("/api/faces/persons/$id/photos")
+
+    override suspend fun renamePerson(id: Long, name: String): List<Person> {
+        val body = json.encodeToString(RenamePersonRequest.serializer(), RenamePersonRequest(name))
+            .toRequestBody(JSON)
+        val resp = execute(Request.Builder().url("$base/api/faces/persons/$id").put(body).build())
+        return json.decodeFromString(serializer<List<Person>>(), resp)
+    }
+
+    override suspend fun mergePersons(from: Long, to: Long): List<Person> {
+        val body = json.encodeToString(MergePersonsRequest.serializer(), MergePersonsRequest(from, to))
+            .toRequestBody(JSON)
+        val resp = execute(Request.Builder().url("$base/api/faces/persons/merge").post(body).build())
+        return json.decodeFromString(serializer<List<Person>>(), resp)
     }
 
     private suspend inline fun <reified T> get(path: String): T {
